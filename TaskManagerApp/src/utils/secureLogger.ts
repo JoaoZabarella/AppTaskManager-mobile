@@ -1,15 +1,5 @@
 
-
-interface SensitiveFields {
-  senha?: string;
-  password?: string;
-  token?: string;
-  confirmaSenha?: string;
-  senhaAtual?: string;
-  novaSenha?: string;
-  authorization?: string;
-}
-
+import { LoggingConfig } from '../config/logging';
 
 export const sanitizeForLogging = (data: any): any => {
   if (!data || typeof data !== 'object') {
@@ -17,42 +7,48 @@ export const sanitizeForLogging = (data: any): any => {
   }
 
   const sanitized = { ...data };
-  const sensitiveKeys = [
-    'senha', 
-    'password', 
-    'token', 
-    'confirmaSenha',
-    'senhaAtual',
-    'novaSenha',
-    'authorization',
-    'Authorization'
-  ];
+  const sensitiveKeys = LoggingConfig.SENSITIVE_FIELDS;
 
   for (const key in sanitized) {
     if (sensitiveKeys.some(sensitiveKey => 
       key.toLowerCase().includes(sensitiveKey.toLowerCase())
     )) {
-      sanitized[key] = '***REDACTED***';
+  
+      if (key.toLowerCase() === 'email' && !LoggingConfig.MASK_EMAIL) {
+        
+        continue;
+      } else if (key.toLowerCase() === 'token') {
+     
+        const value = sanitized[key];
+        if (typeof value === 'string' && value.length > 10) {
+          sanitized[key] = `${value.substring(0, 10)}...***REDACTED***`;
+        } else {
+          sanitized[key] = '***REDACTED***';
+        }
+      } else {
+       
+        sanitized[key] = '***REDACTED***';
+      }
     } else if (typeof sanitized[key] === 'object') {
       sanitized[key] = sanitizeForLogging(sanitized[key]);
     }
   }
 
+
+  if (sanitized.headers && sanitized.headers.Authorization) {
+    sanitized.headers.Authorization = '***REDACTED***';
+  }
+
   return sanitized;
 };
 
-/**
- * Log seguro que remove informações sensíveis
- */
 export const secureLog = (message: string, data?: any) => {
-  if (!__DEV__) return; // Só loga em desenvolvimento
+  if (!__DEV__) return; 
   
   console.log(message, data ? sanitizeForLogging(data) : '');
 };
 
-/**
- * Log de erro seguro
- */
+ 
 export const secureError = (message: string, error: any) => {
   if (!__DEV__) return;
   
@@ -64,4 +60,11 @@ export const secureError = (message: string, error: any) => {
   };
   
   console.error(message, sanitizedError);
+};
+
+
+export const secureAuthLog = (action: string) => {
+  if (!__DEV__) return;
+  
+  console.log(`[AUTH] ${action} - Details hidden for security`);
 };
