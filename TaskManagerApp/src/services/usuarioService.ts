@@ -48,28 +48,8 @@ export const userService = {
       console.error('Mensagem:', error.message);
       
       if (error.response) {
-        console.error('Status:', error.response.status);
-        console.error('Data:', error.response.data);
-        
-        const errorMessage = error.response.data?.message || 
-                           error.response.data?.details?.motivo ||
-                           'Erro ao fazer registro';
-        
-        if (error.response.status === 400) {
-         
-          if (error.response.data?.details?.motivo?.includes('email')) {
-            throw new Error('Este email já está em uso');
-          }
-          if (error.response.data?.details?.motivo?.includes('senha')) {
-            throw new Error('A confirmação de senha não coincide');
-          }
-          if (error.response.data?.details?.motivo?.includes('nome')) {
-            throw new Error('Este nome de usuário já está em uso');
-          }
-          throw new Error(errorMessage);
-        } else {
-          throw new Error(`Erro no servidor: ${errorMessage}`);
-        }
+        const errorMessage = error.response.data?.message || 'Erro ao fazer registro';
+        throw new Error(errorMessage);
       } else if (error.request) {
         console.error('Request:', error.request);
         throw new Error('Servidor não está respondendo. Verifique a conexão.');
@@ -115,7 +95,7 @@ export const userService = {
   async deactivateAccount(): Promise<void> {
     try {
       await api.delete('/usuario/me');
-      // Limpar token ao desativar conta
+      
       await AsyncStorage.removeItem('@TaskManager:token');
     } catch (error: any) {
       console.error('Erro ao desativar conta:', error);

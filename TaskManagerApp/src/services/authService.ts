@@ -1,25 +1,6 @@
 import api from './api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { log, logPretty } from '../utils/logger';
-
-export const auth = {
-  async login(credentials: LoginRequest): Promise<LoginResponse> {
-    log.group('AUTH SERVICE - Login');
-    log.info('Iniciando processo de login');
-    logPretty('Credenciais', { ...credentials, senha: '***' });
-    
-    try {
-      const response = await api.post('/auth/login', credentials);
-      log.success('Login realizado com sucesso');
-      log.groupEnd();
-      return response.data;
-    } catch (error) {
-      log.error('Falha no login', error);
-      log.groupEnd();
-      throw error;
-    }
-  }
-};
+import { secureLog, secureError } from '../utils/secureLogger';
 
 export interface LoginRequest {
   email: string;
@@ -33,31 +14,27 @@ export interface LoginResponse {
 export const authService = {
   async login(credentials: LoginRequest): Promise<LoginResponse> {
     try {
-      console.log('=== INICIANDO LOGIN ===');
-      console.log('URL Base:', api.defaults.baseURL);
-      console.log('Credenciais sendo enviadas:', credentials);
+      secureLog('=== INICIANDO LOGIN ===');
+      secureLog('URL Base:', api.defaults.baseURL);
+      secureLog('Email:', credentials.email);
       
       const response = await api.post<LoginResponse>('/auth/login', credentials);
       
-      console.log('Login bem sucedido!');
-      console.log('Token recebido:', response.data.token);
+      secureLog('Login bem sucedido!');
+      secureLog('Token recebido:', { token: '***TOKEN_RECEIVED***' });
+      
       
       await AsyncStorage.setItem('@TaskManager:token', response.data.token);
-      console.log('Token salvo no AsyncStorage');
+      secureLog('Token salvo no AsyncStorage');
       
+     
       api.defaults.headers.Authorization = `Bearer ${response.data.token}`;
       
       return response.data;
     } catch (error: any) {
-      console.error('=== ERRO NO LOGIN ===');
-      console.error('Tipo de erro:', error.name);
-      console.error('Mensagem:', error.message);
+      secureError('=== ERRO NO LOGIN ===', error);
       
       if (error.response) {
-        console.error('Status:', error.response.status);
-        console.error('Data:', error.response.data);
-        console.error('Headers:', error.response.headers);
-        
         const errorMessage = error.response.data?.message || 
                            error.response.data?.details?.motivo ||
                            error.response.data?.error || 
@@ -67,9 +44,9 @@ export const authService = {
           if (error.response.data?.details?.motivo?.includes('credenciais')) {
             throw new Error('Email ou senha inválidos');
           }
-          throw new Error('Credenciais inválidas');
+          throw new Error('Credenciais inválidas');  
         } else if (error.response.status === 403) {
-          throw new Error('Usuário inativo');
+          throw new Error('Usuário inativo');  
         } else if (error.response.status === 404) {
           throw new Error('Este email não foi cadastrado ainda');
         } else if (error.response.status === 400) {
@@ -78,23 +55,12 @@ export const authService = {
           throw new Error(`Erro no servidor: ${errorMessage}`);
         }
       } else if (error.request) {
-        console.error('Request:', error.request);
+        secureError('Request:', error.request);
         throw new Error('Servidor não está respondendo. Verifique a conexão.');
       } else {
-        console.error('Erro de configuração:', error.message);
+        secureError('Erro de configuração:', error.message);
         throw new Error('Erro ao configurar requisição: ' + error.message);
       }
-    }
-  },
-
-  async logout(): Promise<void> {
-    try {
-      await AsyncStorage.removeItem('@TaskManager:token');
-      delete api.defaults.headers.Authorization;
-      console.log('Logout realizado, token removido');
-    } catch (error) {
-      console.error('Erro durante logout:', error);
-      throw new Error('Erro ao fazer logout');
     }
   },
 
@@ -102,7 +68,7 @@ export const authService = {
     try {
       return await AsyncStorage.getItem('@TaskManager:token');
     } catch (error) {
-      console.error('Erro ao buscar token:', error);
+      secureError('Erro ao buscar token:', error);
       return null;
     }
   },
@@ -121,7 +87,7 @@ export const authService = {
       }
       return false;
     } catch (error) {
-      console.error('Erro ao renovar token:', error);
+      secureError('Erro ao renovar token:', error);
       return false;
     }
   },

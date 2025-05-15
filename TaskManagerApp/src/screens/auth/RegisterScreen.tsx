@@ -37,7 +37,7 @@ const RegisterScreen = () => {
     
     console.log('Senha: ***'); 
     
-    // Validações
+    
     if (!nome || !email || !senha || !confirmaSenha) {
       Toast.show({
         type: 'error',
