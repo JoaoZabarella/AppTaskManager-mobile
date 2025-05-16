@@ -1,8 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { authService } from '../services/authService';
-import { userService, UserResponse } from '../services/usuarioService';
-import api from '../services/api';
+import apiService from '../services';
+import { UserResponse } from '../services/usuarioService';
 
 interface AuthContextData {
   user: UserResponse | null;
@@ -10,7 +8,6 @@ interface AuthContextData {
   isAuthenticated: boolean;
   login: (email: string, senha: string) => Promise<void>;
   logout: () => Promise<void>;
-  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextData>({} as AuthContextData);
@@ -27,47 +24,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<UserResponse | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    checkAuthStatus();
-  }, []);
-
-  const checkAuthStatus = async () => {
-    try {
-      setIsLoading(true);
-      const token = await AsyncStorage.getItem('@TaskManager:token');
-      
-      if (token) {
-        
-        api.defaults.headers.Authorization = `Bearer ${token}`;
-        
-        
-        const userData = await userService.getProfile();
-        setUser(userData);
-      }
-    } catch (error) {
-      console.error('Erro ao verificar status de autenticação:', error);
-      
-      await AsyncStorage.removeItem('@TaskManager:token');
-      delete api.defaults.headers.Authorization;
-      setUser(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const login = async (email: string, senha: string) => {
     try {
-      console.log('Iniciando processo de login...');
-      const { token } = await authService.login({ email, senha });
-      
-      
-      await AsyncStorage.setItem('@TaskManager:token', token);
-      api.defaults.headers.Authorization = `Bearer ${token}`;
-      
-      
-      const userData = await userService.getProfile();
+      const { token } = await apiService.auth.login({ email, senha });
+      const userData = await apiService.user.getProfile();
       setUser(userData);
-      console.log('Login completo, usuário:', userData.nome);
     } catch (error) {
       console.error('Erro ao fazer login:', error);
       throw error;
@@ -76,37 +37,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
-      
-      await AsyncStorage.removeItem('@TaskManager:token');
-      delete api.defaults.headers.Authorization;
+      await apiService.auth.logout();
       setUser(null);
-      console.log('Logout realizado com sucesso');
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
-      setUser(null);
     }
   };
 
-  const refreshUser = async () => {
-    try {
-      const userData = await userService.getProfile();
-      setUser(userData);
-    } catch (error) {
-      console.error('Erro ao atualizar dados do usuário:', error);
-    }
-  };
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      setIsLoading(true);
+      try {
+        const isAuth = await apiService.auth.isAuthenticated();
+        if (isAuth) {
+          const userData = await apiService.user.getProfile();
+          setUser(userData);
+        }
+      } catch (error) {
+        console.error('Erro ao verificar autenticação:', error);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    checkAuthStatus();
+  }, []);
 
   return (
-    <AuthContext.Provider 
-      value={{ 
-        user, 
-        isLoading, 
-        isAuthenticated: !!user, 
-        login, 
-        logout,
-        refreshUser 
-      }}
-    >
+    <AuthContext.Provider value={{ user, isLoading, isAuthenticated: !!user, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

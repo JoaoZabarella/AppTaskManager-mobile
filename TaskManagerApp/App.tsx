@@ -58,13 +58,19 @@ function RootNavigator() {
   );
 }
 
+function AppContent() {
+  return (
+    <AuthProvider>
+      <RootNavigator />
+    </AuthProvider>
+  );
+}
+
 export default function App() {
   return (
     <SafeAreaProvider>
       <NavigationContainer>
-        <AuthProvider>
-          <RootNavigator />
-        </AuthProvider>
+        <AppContent />
       </NavigationContainer>
       <Toast />
     </SafeAreaProvider>

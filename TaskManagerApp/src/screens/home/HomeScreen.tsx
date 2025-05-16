@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,13 +6,126 @@ import {
   TouchableOpacity,
   ScrollView,
   StatusBar,
+  Animated,
+  Dimensions,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
+import { SvgXml } from 'react-native-svg';
+
+const { width } = Dimensions.get('window');
+
+
+const logoSvg = `<?xml version="1.0" encoding="UTF-8"?>
+<svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#2196F3;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#673AB7;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="10" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+  
+  <!-- Fundo circular -->
+  <circle cx="200" cy="200" r="180" fill="#0F172A" filter="url(#shadow)"/>
+  
+  <!-- Círculo gradiente interno -->
+  <circle cx="200" cy="200" r="160" fill="url(#grad1)" opacity="0.9"/>
+  
+  <!-- Ícone de lista de tarefas -->
+  <g fill="white" transform="translate(100, 100) scale(0.8)">
+    <!-- Papel/Documento -->
+    <path d="M50,30 h150 a20,20 0 0 1 20,20 v200 a20,20 0 0 1 -20,20 h-150 a20,20 0 0 1 -20,-20 v-200 a20,20 0 0 1 20,-20 z" fill="white" opacity="0.95"/>
+    
+    <!-- Linhas do documento -->
+    <line x1="70" y1="90" x2="180" y2="90" stroke="#0F172A" stroke-width="10" stroke-linecap="round"/>
+    <line x1="70" y1="130" x2="180" y2="130" stroke="#0F172A" stroke-width="10" stroke-linecap="round"/>
+    <line x1="70" y1="170" x2="180" y2="170" stroke="#0F172A" stroke-width="10" stroke-linecap="round"/>
+    <line x1="70" y1="210" x2="120" y2="210" stroke="#0F172A" stroke-width="10" stroke-linecap="round"/>
+    
+    <!-- Marcação de check -->
+    <circle cx="50" y="90" r="12" fill="#2196F3"/>
+    <circle cx="50" y="130" r="12" fill="#2196F3"/>
+    <circle cx="50" y="170" r="12" fill="#2196F3"/>
+    <circle cx="50" y="210" r="12" fill="#2196F3"/>
+    
+    <!-- Checkmarks -->
+    <path d="M44,90 l5,5 l8,-8" stroke="white" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <path d="M44,130 l5,5 l8,-8" stroke="white" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+</svg>`;
 
 const HomeScreen = () => {
   const { user, logout } = useAuth();
+  const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [stats, setStats] = useState({
+    total: 0,
+    concluidas: 0,
+    emAndamento: 0
+  });
+
+  
+  const fadeAnim = useState(new Animated.Value(0))[0];
+  const slideAnim = useState(new Animated.Value(30))[0];
+  const cardAnimArray = [
+    useState(new Animated.Value(0))[0],
+    useState(new Animated.Value(0))[0],
+    useState(new Animated.Value(0))[0],
+    useState(new Animated.Value(0))[0]
+  ];
+
+ 
+  const fetchStats = () => {
+    setLoading(true);
+   
+    setTimeout(() => {
+      setStats({
+        total: 5,
+        concluidas: 2,
+        emAndamento: 3
+      });
+      setLoading(false);
+    }, 1000);
+  };
+
+  useEffect(() => {
+    fetchStats();
+
+   
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      ...cardAnimArray.map((anim, index) => 
+        Animated.timing(anim, {
+          toValue: 1,
+          duration: 600,
+          delay: 300 + (index * 100),
+          useNativeDriver: true,
+        })
+      )
+    ]).start();
+  }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchStats();
+    setTimeout(() => {
+      setRefreshing(false);
+    }, 1500);
+  };
 
   const handleLogout = async () => {
     try {
@@ -27,64 +140,148 @@ const HomeScreen = () => {
       <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
       
       {/* Header */}
-      <View style={styles.header}>
-        <View>
+      <Animated.View 
+        style={[
+          styles.header,
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }]
+          }
+        ]}
+      >
+        <View style={styles.userGreeting}>
           <Text style={styles.greeting}>Olá, {user?.nome || 'Usuário'}!</Text>
           <Text style={styles.subtitle}>Bem-vindo ao TaskManager</Text>
         </View>
-        <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-          <Ionicons name="log-out-outline" size={24} color="#fff" />
+        <TouchableOpacity 
+          onPress={handleLogout} 
+          style={styles.logoutButton}
+          activeOpacity={0.7}
+        >
+          <Ionicons name="log-out-outline" size={26} color="#fff" />
         </TouchableOpacity>
-      </View>
+      </Animated.View>
 
       <ScrollView 
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl 
+            refreshing={refreshing} 
+            onRefresh={onRefresh}
+            tintColor="#2196F3" 
+            colors={["#2196F3"]}
+          />
+        }
       >
+        {/* Logo e título */}
+        <Animated.View 
+          style={[
+            styles.logoContainer,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }]
+            }
+          ]}
+        >
+          <SvgXml xml={logoSvg} width={100} height={100} />
+          <Text style={styles.logoTitle}>TaskManager</Text>
+        </Animated.View>
+
         {/* Stats Cards */}
         <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <Ionicons name="list-outline" size={32} color="#2196F3" />
-            <Text style={styles.statNumber}>0</Text>
-            <Text style={styles.statLabel}>Total de Tarefas</Text>
-          </View>
-          
-          <View style={styles.statCard}>
-            <Ionicons name="checkmark-circle-outline" size={32} color="#4CAF50" />
-            <Text style={styles.statNumber}>0</Text>
-            <Text style={styles.statLabel}>Concluídas</Text>
-          </View>
-          
-          <View style={styles.statCard}>
-            <Ionicons name="time-outline" size={32} color="#FF9800" />
-            <Text style={styles.statNumber}>0</Text>
-            <Text style={styles.statLabel}>Em Andamento</Text>
-          </View>
+          {cardAnimArray.map((anim, index) => {
+            let iconName: "list-outline" | "checkmark-circle-outline" | "time-outline" | "calendar-outline" | undefined;
+            let cardTitle, cardValue, cardColor;
+            
+            switch(index) {
+              case 0:
+                iconName = "list-outline";
+                cardTitle = "Total";
+                cardValue = stats.total;
+                cardColor = "#2196F3";
+                break;
+              case 1:
+                iconName = "checkmark-circle-outline";
+                cardTitle = "Concluídas";
+                cardValue = stats.concluidas;
+                cardColor = "#4CAF50";
+                break;
+              case 2:
+                iconName = "time-outline";
+                cardTitle = "Em Andamento";
+                cardValue = stats.emAndamento;
+                cardColor = "#FF9800";
+                break;
+              case 3:
+                iconName = "calendar-outline";
+                cardTitle = "Com Prazo";
+                cardValue = 2;
+                cardColor = "#9C27B0";
+                break;
+            }
+            
+            return (
+              <Animated.View
+                key={index}
+                style={[
+                  styles.statCard,
+                  {
+                    opacity: anim,
+                    transform: [
+                      { scale: anim.interpolate({
+                        inputRange: [0, 1],
+                        outputRange: [0.8, 1]
+                      }) }
+                    ]
+                  }
+                ]}
+              >
+                <View style={[styles.cardIconContainer, { backgroundColor: cardColor }]}>
+                  <Ionicons name={iconName} size={24} color="#fff" />
+                </View>
+                <Text style={styles.statNumber}>{loading ? '-' : cardValue}</Text>
+                <Text style={styles.statLabel}>{cardTitle}</Text>
+              </Animated.View>
+            );
+          })}
         </View>
 
         {/* Ações Rápidas */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ações Rápidas</Text>
           
-          <TouchableOpacity style={styles.actionCard}>
-            <View style={styles.actionIcon}>
-              <Ionicons name="add-circle" size={40} color="#2196F3" />
+          <TouchableOpacity style={styles.actionCard} activeOpacity={0.7}>
+            <View style={[styles.actionIcon, { backgroundColor: 'rgba(33, 150, 243, 0.15)' }]}>
+              <Ionicons name="add-circle" size={30} color="#2196F3" />
             </View>
-            <Text style={styles.actionText}>Nova Tarefa</Text>
+            <View style={styles.actionContent}>
+              <Text style={styles.actionText}>Nova Tarefa</Text>
+              <Text style={styles.actionSubtext}>Crie uma tarefa rapidamente</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color="#94A3B8" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionCard}>
-            <View style={styles.actionIcon}>
-              <Ionicons name="list" size={40} color="#2196F3" />
+          <TouchableOpacity style={styles.actionCard} activeOpacity={0.7}>
+            <View style={[styles.actionIcon, { backgroundColor: 'rgba(76, 175, 80, 0.15)' }]}>
+              <Ionicons name="list" size={30} color="#4CAF50" />
             </View>
-            <Text style={styles.actionText}>Ver Todas as Tarefas</Text>
+            <View style={styles.actionContent}>
+              <Text style={styles.actionText}>Ver Todas as Tarefas</Text>
+              <Text style={styles.actionSubtext}>Visualize e gerencie suas tarefas</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color="#94A3B8" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionCard}>
-            <View style={styles.actionIcon}>
-              <Ionicons name="folder-open" size={40} color="#2196F3" />
+          <TouchableOpacity style={styles.actionCard} activeOpacity={0.7}>
+            <View style={[styles.actionIcon, { backgroundColor: 'rgba(255, 152, 0, 0.15)' }]}>
+              <Ionicons name="folder-open" size={30} color="#FF9800" />
             </View>
-            <Text style={styles.actionText}>Categorias</Text>
+            <View style={styles.actionContent}>
+              <Text style={styles.actionText}>Categorias</Text>
+              <Text style={styles.actionSubtext}>Organize suas tarefas por categoria</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color="#94A3B8" />
           </TouchableOpacity>
         </View>
 
@@ -95,9 +292,17 @@ const HomeScreen = () => {
             <Ionicons name="document-text-outline" size={64} color="#64748B" />
             <Text style={styles.emptyText}>Nenhuma tarefa recente</Text>
             <Text style={styles.emptySubtext}>Crie sua primeira tarefa para começar</Text>
+            <TouchableOpacity style={styles.emptyButton} activeOpacity={0.8}>
+              <Text style={styles.emptyButtonText}>Criar Tarefa</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
+
+      {/* Botão flutuante para adicionar tarefa */}
+      <TouchableOpacity style={styles.fab} activeOpacity={0.8}>
+        <Ionicons name="add" size={30} color="#fff" />
+      </TouchableOpacity>
     </SafeAreaView>
   );
 };
@@ -112,9 +317,12 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 20,
+    paddingVertical: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#1E293B',
+  },
+  userGreeting: {
+    flex: 1,
   },
   greeting: {
     fontSize: 24,
@@ -128,39 +336,67 @@ const styles = StyleSheet.create({
   },
   logoutButton: {
     padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#1E293B',
   },
   scrollContent: {
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: 100,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginTop: 20,
+    marginBottom: 30,
+  },
+  logoTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#fff',
+    marginTop: 10,
   },
   statsContainer: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginTop: 24,
-    marginBottom: 32,
+    marginBottom: 30,
   },
   statCard: {
-    flex: 1,
+    width: (width - 52) / 2,
     backgroundColor: '#1E293B',
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
-    marginHorizontal: 6,
+    marginBottom: 12,
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  cardIconContainer: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
   },
   statNumber: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#fff',
-    marginTop: 8,
+    marginBottom: 4,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 14,
     color: '#94A3B8',
-    marginTop: 4,
     textAlign: 'center',
   },
   section: {
-    marginBottom: 32,
+    marginBottom: 30,
   },
   sectionTitle: {
     fontSize: 20,
@@ -170,34 +406,96 @@ const styles = StyleSheet.create({
   },
   actionCard: {
     backgroundColor: '#1E293B',
-    borderRadius: 12,
-    padding: 20,
+    borderRadius: 16,
+    padding: 16,
     marginBottom: 12,
     flexDirection: 'row',
     alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   actionIcon: {
+    width: 50,
+    height: 50,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 16,
+  },
+  actionContent: {
+    flex: 1,
   },
   actionText: {
     fontSize: 18,
     color: '#fff',
     fontWeight: '600',
+    marginBottom: 4,
+  },
+  actionSubtext: {
+    fontSize: 14,
+    color: '#94A3B8',
   },
   emptyState: {
+    backgroundColor: '#1E293B',
+    borderRadius: 16,
+    padding: 24,
     alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 40,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
   },
   emptyText: {
     fontSize: 18,
     color: '#94A3B8',
     marginTop: 16,
+    marginBottom: 8,
   },
   emptySubtext: {
     fontSize: 14,
     color: '#64748B',
-    marginTop: 8,
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  emptyButton: {
+    backgroundColor: '#2196F3',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+  },
+  emptyButtonText: {
+    color: '#fff',
+    fontSize: 16,
+    fontWeight: 'bold',
+  },
+  fab: {
+    position: 'absolute',
+    right: 24,
+    bottom: 24,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#2196F3',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#1E88E5',
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 8,
   },
 });
 
