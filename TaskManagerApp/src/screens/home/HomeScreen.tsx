@@ -64,6 +64,14 @@ const logoSvg = `<?xml version="1.0" encoding="UTF-8"?>
   </g>
 </svg>`;
 
+interface Tarefa {
+  id: number;
+  titulo: string;
+  statusId: number;
+  statusTexto: string;
+  prazo?: string | null;
+}
+
 const HomeScreen = () => {
   const { user, logout } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
@@ -74,6 +82,7 @@ const HomeScreen = () => {
     emAndamento: 0,
     comPrazo: 0
   });
+  const [tarefasRecentes, setTarefasRecentes] = useState<Tarefa[]>([]);
 
  const navigation = useNavigation<HomeScreenNavigationProp>();
   const fadeAnim = useState(new Animated.Value(0))[0];
@@ -85,35 +94,29 @@ const HomeScreen = () => {
     useState(new Animated.Value(0))[0]
   ];
 
-  const fetchStats = async () => {
-  setLoading(true);
-  try {
-  
-    const estatisticas = await apiService.api.task.getTaskStats();
-    
-    setStats({
-      total: estatisticas.total || 0,
-      concluidas: estatisticas.concluidas || 0,
-      emAndamento: estatisticas.emAndamento || 0,
-      comPrazo: estatisticas.comPrazo || 0
-    });
-  } catch (error) {
-    console.error('Erro ao buscar estatísticas:', error);
-    
-    setStats({
-      total: 0,
-      concluidas: 0,
-      emAndamento: 0,
-      comPrazo: 0
-    });
-  } finally {
-    setLoading(false);
-  }
-};
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+
+      const estatisticas = await apiService.api.task.getTaskStats();
+      setStats({
+        total: estatisticas.total || 0,
+        concluidas: estatisticas.concluidas || 0,
+        emAndamento: estatisticas.emAndamento || 0,
+        comPrazo: estatisticas.comPrazo || 0
+      });
+
+      const response = await apiService.api.task.getTasks(0, 3);
+      setTarefasRecentes(response.tarefas || []);
+    } catch (error) {
+      console.error('Erro ao buscar dados:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
 useEffect(() => {
-  fetchStats();
-
+  fetchData();
   Animated.parallel([
     Animated.timing(fadeAnim, {
       toValue: 1,
@@ -134,17 +137,17 @@ useEffect(() => {
       })
     ),
   ]).start();
-}, []); 
+}, []);
 
 useFocusEffect(
   React.useCallback(() => {
-    fetchStats(); 
+    fetchData();
   }, [])
 );
 
 const onRefresh = () => {
   setRefreshing(true);
-  fetchStats().finally(() => {
+  fetchData().finally(() => {
     setRefreshing(false);
   });
 };
@@ -154,6 +157,19 @@ const onRefresh = () => {
       await logout();
     } catch (error) {
       console.error('Erro ao fazer logout:', error);
+    }
+  };
+
+  const getStatusStyle = (statusId: number) => {
+    switch (statusId) {
+      case 1:
+        return { backgroundColor: '#4CAF50' };
+      case 2:
+        return { backgroundColor: '#FF9800' };
+      case 3:
+        return { backgroundColor: '#F44336' };
+      default:
+        return { backgroundColor: '#94A3B8' };
     }
   };
 
@@ -314,14 +330,43 @@ const onRefresh = () => {
         {/* Tarefas Recentes */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Tarefas Recentes</Text>
-          <View style={styles.emptyState}>
-            <Ionicons name="document-text-outline" size={64} color="#64748B" />
-            <Text style={styles.emptyText}>Nenhuma tarefa recente</Text>
-            <Text style={styles.emptySubtext}>Crie sua primeira tarefa para começar</Text>
-            <TouchableOpacity style={styles.emptyButton} activeOpacity={0.8}>
-              <Text style={styles.emptyButtonText}>Criar Tarefa</Text>
-            </TouchableOpacity>
-          </View>
+          {tarefasRecentes.length > 0 ? (
+            tarefasRecentes.map(tarefa => (
+              <TouchableOpacity 
+                key={tarefa.id}
+                style={styles.recentTaskCard}
+                onPress={() => navigation.navigate('TaskDetail', { taskId: tarefa.id })}
+              >
+                <View style={styles.recentTaskHeader}>
+                  <Text style={styles.recentTaskTitle}>{tarefa.titulo}</Text>
+                  <View style={[styles.statusBadge, getStatusStyle(tarefa.statusId)]}>
+                    <Text style={styles.statusText}>{tarefa.statusTexto}</Text>
+                  </View>
+                </View>
+                {tarefa.prazo && (
+                  <View style={styles.dateContainer}>
+                    <Ionicons name="calendar-outline" size={14} color="#94A3B8" />
+                    <Text style={styles.dateText}>
+                      {new Date(tarefa.prazo).toLocaleDateString()}
+                    </Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+            ))
+          ) : (
+            <View style={styles.emptyState}>
+              <Ionicons name="document-text-outline" size={64} color="#64748B" />
+              <Text style={styles.emptyText}>Nenhuma tarefa recente</Text>
+              <Text style={styles.emptySubtext}>Crie sua primeira tarefa para começar</Text>
+              <TouchableOpacity 
+                style={styles.emptyButton} 
+                activeOpacity={0.8}
+                onPress={() => navigation.navigate('CreateTask')}
+              >
+                <Text style={styles.emptyButtonText}>Criar Tarefa</Text>
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </ScrollView>
 
@@ -522,6 +567,49 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 8,
+  },
+  recentTaskCard: {
+    backgroundColor: '#1E293B',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  recentTaskHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  recentTaskTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#fff',
+    flex: 1,
+  },
+  statusBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#fff',
+  },
+  dateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  dateText: {
+    fontSize: 12,
+    color: '#94A3B8',
+    marginLeft: 4,
   },
 });
 
