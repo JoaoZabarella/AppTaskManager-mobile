@@ -1,6 +1,7 @@
 import React from 'react';
 import { createStackNavigator } from '@react-navigation/stack';
 import HomeScreen from '../screens/home/HomeScreen';
+import TaskListScreen from '../screens/tasks/TaskListScreen'; 
 
 export type AppStackParamList = {
   Home: undefined;
@@ -12,7 +13,6 @@ export type AppStackParamList = {
   Profile: undefined;
   Settings: undefined;
 };
-
 const Stack = createStackNavigator<AppStackParamList>();
 
 export default function AppNavigator() {
@@ -23,6 +23,7 @@ export default function AppNavigator() {
       }}
     >
       <Stack.Screen name="Home" component={HomeScreen} />
+      <Stack.Screen name="TaskList" component={TaskListScreen} /> 
     </Stack.Navigator>
   );
 }

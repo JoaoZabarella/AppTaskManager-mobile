@@ -14,9 +14,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '../../contexts/AuthContext';
 import { Ionicons } from '@expo/vector-icons';
 import { SvgXml } from 'react-native-svg';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
+import { AppStackParamList } from '../../navigation/AppNavigator';
+import apiService from '../../services';
+
+type HomeScreenNavigationProp = StackNavigationProp<AppStackParamList, 'Home'>;
 
 const { width } = Dimensions.get('window');
-
 
 const logoSvg = `<?xml version="1.0" encoding="UTF-8"?>
 <svg viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
@@ -66,10 +71,11 @@ const HomeScreen = () => {
   const [stats, setStats] = useState({
     total: 0,
     concluidas: 0,
-    emAndamento: 0
+    emAndamento: 0,
+    comPrazo: 0
   });
 
-  
+ const navigation = useNavigation<HomeScreenNavigationProp>();
   const fadeAnim = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(30))[0];
   const cardAnimArray = [
@@ -79,53 +85,69 @@ const HomeScreen = () => {
     useState(new Animated.Value(0))[0]
   ];
 
- 
-  const fetchStats = () => {
-    setLoading(true);
-   
-    setTimeout(() => {
-      setStats({
-        total: 5,
-        concluidas: 2,
-        emAndamento: 3
-      });
-      setLoading(false);
-    }, 1000);
-  };
+  const fetchStats = async () => {
+  setLoading(true);
+  try {
+  
+    const estatisticas = await apiService.api.task.getTaskStats();
+    
+    setStats({
+      total: estatisticas.total || 0,
+      concluidas: estatisticas.concluidas || 0,
+      emAndamento: estatisticas.emAndamento || 0,
+      comPrazo: estatisticas.comPrazo || 0
+    });
+  } catch (error) {
+    console.error('Erro ao buscar estatísticas:', error);
+    
+    setStats({
+      total: 0,
+      concluidas: 0,
+      emAndamento: 0,
+      comPrazo: 0
+    });
+  } finally {
+    setLoading(false);
+  }
+};
 
-  useEffect(() => {
-    fetchStats();
+useEffect(() => {
+  fetchStats();
 
-   
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
+  Animated.parallel([
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 500,
+      useNativeDriver: true,
+    }),
+    Animated.timing(slideAnim, {
+      toValue: 0,
+      duration: 600,
+      useNativeDriver: true,
+    }),
+    ...cardAnimArray.map((anim, index) =>
+      Animated.timing(anim, {
         toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
         duration: 600,
+        delay: 300 + index * 100,
         useNativeDriver: true,
-      }),
-      ...cardAnimArray.map((anim, index) => 
-        Animated.timing(anim, {
-          toValue: 1,
-          duration: 600,
-          delay: 300 + (index * 100),
-          useNativeDriver: true,
-        })
-      )
-    ]).start();
-  }, []);
+      })
+    ),
+  ]).start();
+}, []); 
 
-  const onRefresh = () => {
-    setRefreshing(true);
-    fetchStats();
-    setTimeout(() => {
-      setRefreshing(false);
-    }, 1500);
-  };
+useFocusEffect(
+  React.useCallback(() => {
+    fetchStats(); 
+  }, [])
+);
+
+const onRefresh = () => {
+  setRefreshing(true);
+  fetchStats().finally(() => {
+    setRefreshing(false);
+  });
+};
 
   const handleLogout = async () => {
     try {
@@ -216,7 +238,7 @@ const HomeScreen = () => {
               case 3:
                 iconName = "calendar-outline";
                 cardTitle = "Com Prazo";
-                cardValue = 2;
+                cardValue = stats.comPrazo;
                 cardColor = "#9C27B0";
                 break;
             }
@@ -262,7 +284,11 @@ const HomeScreen = () => {
             <Ionicons name="chevron-forward" size={24} color="#94A3B8" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionCard} activeOpacity={0.7}>
+          <TouchableOpacity 
+            style={styles.actionCard} 
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('TaskList')}
+          >
             <View style={[styles.actionIcon, { backgroundColor: 'rgba(76, 175, 80, 0.15)' }]}>
               <Ionicons name="list" size={30} color="#4CAF50" />
             </View>
