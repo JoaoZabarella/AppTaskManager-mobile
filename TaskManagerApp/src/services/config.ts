@@ -1,9 +1,9 @@
 export const config = {
  
-  NGROK_URL: 'https://7810-2804-14c-190-8ef0-5761-c049-3ba3-2f00.ngrok-free.app',
+  NGROK_URL: 'https://1901-2804-14c-190-8ef0-ccb7-f9c-bd1-ea31.ngrok-free.app',
  
   API_BASE_URL: __DEV__ 
-    ? 'https://7810-2804-14c-190-8ef0-5761-c049-3ba3-2f00.ngrok-free.app' 
+    ? 'https://1901-2804-14c-190-8ef0-ccb7-f9c-bd1-ea31.ngrok-free.app' 
     : 'https://api.taskmanager.com',
   
 

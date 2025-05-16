@@ -231,11 +231,10 @@ const userService = {
   }
 };
 
-
 const taskService = {
-  async getTasks() {
+  async getTasks(page = 0, size = 10) {
     try {
-      const response = await axiosInstance.get('/tarefas/paginado');
+      const response = await axiosInstance.get(`/tarefas/paginado?page=${page}&size=${size}`);
       return response.data;
     } catch (error) {
       errorLog('Erro ao buscar tarefas:', error);
@@ -252,7 +251,73 @@ const taskService = {
       throw error;
     }
   },
+
+   async getTaskStats() {
+    try {
+      const response = await axiosInstance.get('/tarefas/estatisticas');
+      return response.data;
+    } catch (error) {
+      errorLog('Erro ao buscar estatísticas das tarefas:', error);
+      throw error;
+    }
+  },
+
   
+   async filterTasks(filterOptions: FilterTasksOptions, page = 0, size = 10) {
+    const { statusId, prioridadeId, categoriaId } = filterOptions;
+    let url = `/tarefas/filtrar?page=${page}&size=${size}`;
+    
+    if (statusId !== null) url += `&statusId=${statusId}`;
+    if (prioridadeId !== null) url += `&prioridadeId=${prioridadeId}`;
+    if (categoriaId !== null) url += `&categoriaId=${categoriaId}`;
+    
+    try {
+      const response = await axiosInstance.get(url);
+      return response.data;
+    } catch (error) {
+      errorLog('Erro ao filtrar tarefas:', error);
+      throw error;
+    }
+  },
+  
+  async searchTasks(query: string, page = 0, size = 10) {
+    try {
+      const response = await axiosInstance.get(`/tarefas/filtrar/palavra?palavraChave=${query}&page=${page}&size=${size}`);
+      return response.data;
+    } catch (error) {
+      errorLog('Erro ao buscar tarefas por palavra-chave:', error);
+      throw error;
+    }
+  },
+  
+  async completeTask(taskId: number) {
+    try {
+      const response = await axiosInstance.patch(`/tarefas/concluir/${taskId}`);
+      return response.data;
+    } catch (error) {
+      errorLog('Erro ao concluir tarefa:', error);
+      throw error;
+    }
+  },
+  
+  async reopenTask(taskId: number) {
+    try {
+      const response = await axiosInstance.patch(`/tarefas/reabrir/${taskId}`);
+      return response.data;
+    } catch (error) {
+      errorLog('Erro ao reabrir tarefa:', error);
+      throw error;
+    }
+  },
+  
+  async archiveTask(taskId: number) {
+    try {
+      await axiosInstance.delete(`/tarefas/arquivar/${taskId}`);
+    } catch (error) {
+      errorLog('Erro ao arquivar tarefa:', error);
+      throw error;
+    }
+  },
   
 };
 
@@ -286,3 +351,9 @@ export default {
   task: taskService,         
   category: categoryService  
 };
+
+interface FilterTasksOptions {
+  statusId: number | null;
+  prioridadeId: number | null;
+  categoriaId: number | null;
+}
