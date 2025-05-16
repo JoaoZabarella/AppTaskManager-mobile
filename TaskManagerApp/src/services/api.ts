@@ -29,16 +29,10 @@ axiosInstance.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    
-    log('Requisição:', config.method, config.url);
-    
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
-
 
 axiosInstance.interceptors.response.use(
   (response) => {
@@ -315,6 +309,16 @@ const taskService = {
       await axiosInstance.delete(`/tarefas/arquivar/${taskId}`);
     } catch (error) {
       errorLog('Erro ao arquivar tarefa:', error);
+      throw error;
+    }
+  },
+
+  async getTaskById(taskId: number) {
+    try {
+      const response = await axiosInstance.get(`/tarefas/${taskId}`);
+      return response.data;
+    } catch (error) {
+      errorLog('Erro ao buscar tarefa por ID:', error);
       throw error;
     }
   },
