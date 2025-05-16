@@ -1,26 +1,37 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { config } from './config';
 
+const log = (...args: any[]) => {
+  if (__DEV__) {
+    console.log(...args);
+  }
+};
 
-const API_BASE_URL = ' https://9550-2804-14c-190-8ef0-d81c-faa1-c1fb-b80d.ngrok-free.app';
+const errorLog = (...args: any[]) => {
+  if (__DEV__) {
+    console.error(...args);
+  }
+};
 
-const api = axios.create({
-  baseURL: API_BASE_URL,
-  timeout: 30000,
+const axiosInstance = axios.create({
+  baseURL: config.API_BASE_URL,
+  timeout: config.REQUEST_TIMEOUT,
   headers: {
     'Content-Type': 'application/json',
-    'ngrok-skip-browser-warning': 'true', 
+    'ngrok-skip-browser-warning': 'true',
   },
 });
 
-
-api.interceptors.request.use(
+axiosInstance.interceptors.request.use(
   async (config) => {
     const token = await AsyncStorage.getItem('@TaskManager:token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    console.log('Requisição:', config.method, config.url);
+    
+    log('Requisição:', config.method, config.url);
+    
     return config;
   },
   (error) => {
@@ -28,15 +39,250 @@ api.interceptors.request.use(
   }
 );
 
-api.interceptors.response.use(
+
+axiosInstance.interceptors.response.use(
   (response) => {
-    console.log('Resposta:', response.status);
+    log('Resposta:', response.status);
     return response;
   },
   (error) => {
-    console.error('Erro:', error.message);
+    errorLog('Erro:', error.message);
+
+
+    if (error.response) {
+      switch (error.response.status) {
+        case 401:
+          error.message = 'Não autorizado. Faça login novamente.';
+          break;
+        case 403:
+          error.message = 'Acesso negado.';
+          break;
+        case 404:
+          error.message = 'Recurso não encontrado.';
+          break;
+        case 500:
+          error.message = 'Erro interno do servidor.';
+          break;
+        default:
+          error.message = 'Erro desconhecido. Tente novamente.';
+      }
+    } else if (error.request) {
+      error.message = 'Erro de conexão. Verifique sua internet.';
+    }
+
     return Promise.reject(error);
   }
 );
 
-export default api;
+interface LoginRequest {
+  email: string;
+  senha: string;
+}
+
+interface LoginResponse {
+  token: string;
+}
+
+interface RegisterRequest {
+  nome: string;
+  email: string;
+  senha: string;
+  confirmaSenha: string;
+}
+
+interface UserResponse {
+  id: number;
+  nome: string;
+  email: string;
+  dataCriacao: string;
+  ativo: boolean;
+  roles: string[];
+  statusEmoji?: string;
+}
+
+interface UpdateUserRequest {
+  nome?: string;
+  email?: string;
+}
+
+interface ChangePasswordRequest {
+  senhaAtual: string;
+  novaSenha: string;
+  confirmaSenha: string;
+}
+
+
+const authService = {
+  async login(credentials: LoginRequest): Promise<LoginResponse> {
+    try {
+      const response = await axiosInstance.post<LoginResponse>('/auth/login', credentials);
+      await AsyncStorage.setItem('@TaskManager:token', response.data.token);
+      axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${response.data.token}`;
+      return response.data;
+    } catch (error: any) {
+      if (error.response?.status === 401) {
+        throw new Error('Credenciais inválidas. Verifique seu email e senha.');
+      }
+      throw new Error('Erro ao fazer login. Tente novamente mais tarde.');
+    }
+  },
+
+  async logout(): Promise<void> {
+    try {
+      await AsyncStorage.removeItem('@TaskManager:token');
+      delete axiosInstance.defaults.headers.common['Authorization'];
+      log('Logout realizado com sucesso');
+    } catch (error) {
+      errorLog('Erro ao fazer logout:', error);
+      throw error;
+    }
+  },
+
+  async isAuthenticated(): Promise<boolean> {
+    try {
+      const token = await AsyncStorage.getItem('@TaskManager:token');
+      if (!token) return false;
+
+     
+      const isTokenValid = await this.refreshToken();
+      return isTokenValid;
+    } catch (error) {
+      errorLog('Erro ao verificar autenticação:', error);
+      return false;
+    }
+  },
+
+  async refreshToken(): Promise<boolean> {
+    try {
+      const token = await AsyncStorage.getItem('@TaskManager:token');
+      if (token) {
+        axiosInstance.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+        return true;
+      }
+      return false;
+    } catch (error) {
+      errorLog('Erro ao renovar token:', error);
+      return false;
+    }
+  }
+};
+
+
+const userService = {
+  async registerUser(userData: RegisterRequest): Promise<UserResponse> {
+    if (!userData.nome || !userData.email || !userData.senha || !userData.confirmaSenha) {
+      throw new Error('Todos os campos são obrigatórios.');
+    }
+
+    if (userData.senha !== userData.confirmaSenha) {
+      throw new Error('As senhas não coincidem.');
+    }
+
+    try {
+      const response = await axiosInstance.post<UserResponse>('/usuario', userData);
+      return response.data;
+    } catch (error: any) {
+      if (error.response?.status === 400) {
+        throw new Error('Erro nos dados enviados. Verifique e tente novamente.');
+      }
+      throw error;
+    }
+  },
+
+  async getProfile(): Promise<UserResponse> {
+    try {
+      const response = await axiosInstance.get<UserResponse>('/usuario/me');
+      return response.data;
+    } catch (error) {
+      errorLog('Erro ao buscar perfil:', error);
+      throw error;
+    }
+  },
+
+  async updateProfile(userData: UpdateUserRequest): Promise<UserResponse> {
+    try {
+      const response = await axiosInstance.put<UserResponse>('/usuario/me', userData);
+      return response.data;
+    } catch (error) {
+      errorLog('Erro ao atualizar perfil:', error);
+      throw error;
+    }
+  },
+
+  async changePassword(passwordData: ChangePasswordRequest): Promise<void> {
+    try {
+      await axiosInstance.put('/usuario/me/alterar-senha', passwordData);
+      log('Senha alterada com sucesso');
+    } catch (error) {
+      errorLog('Erro ao alterar senha:', error);
+      throw error;
+    }
+  },
+
+  async deactivateAccount(): Promise<void> {
+    try {
+      await axiosInstance.delete('/usuario/me');
+      await AsyncStorage.removeItem('@TaskManager:token');
+      log('Conta desativada com sucesso');
+    } catch (error) {
+      errorLog('Erro ao desativar conta:', error);
+      throw error;
+    }
+  }
+};
+
+
+const taskService = {
+  async getTasks() {
+    try {
+      const response = await axiosInstance.get('/tarefas/paginado');
+      return response.data;
+    } catch (error) {
+      errorLog('Erro ao buscar tarefas:', error);
+      throw error;
+    }
+  },
+  
+  async createTask(taskData: any) {
+    try {
+      const response = await axiosInstance.post('/tarefas', taskData);
+      return response.data;
+    } catch (error) {
+      errorLog('Erro ao criar tarefa:', error);
+      throw error;
+    }
+  },
+  
+  
+};
+
+
+const categoryService = {
+  async getCategories() {
+    try {
+      const response = await axiosInstance.get('/categorias');
+      return response.data;
+    } catch (error) {
+      errorLog('Erro ao buscar categorias:', error);
+      throw error;
+    }
+  },
+  
+  async createCategory(categoryData: any) {
+    try {
+      const response = await axiosInstance.post('/categorias', categoryData);
+      return response.data;
+    } catch (error) {
+      errorLog('Erro ao criar categoria:', error);
+      throw error;
+    }
+  },
+};
+
+export default {
+  api: axiosInstance,        
+  auth: authService,         
+  user: userService,         
+  task: taskService,         
+  category: categoryService  
+};
