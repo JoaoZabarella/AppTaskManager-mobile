@@ -18,7 +18,7 @@ export default {
       console.log('URL Base:', api.api.defaults.baseURL);
       console.log('Email:', credentials.email);
       
-      // Remova qualquer token antigo antes de tentar fazer login
+      
       await AsyncStorage.removeItem(config.TOKEN_KEY);
       delete api.api.defaults.headers.common['Authorization'];
       

@@ -50,7 +50,7 @@ const TaskDetailScreen = () => {
   const [error, setError] = useState<string | null>(null);
   const [confirmationVisible, setConfirmationVisible] = useState(false);
   
-  // Animações
+  
   const fadeAnim = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(50))[0];
   
