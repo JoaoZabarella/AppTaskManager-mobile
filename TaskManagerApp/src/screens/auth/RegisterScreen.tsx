@@ -19,7 +19,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { RootStackParamList } from '../../../App';
 import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
-import apiService from '../../services'; // Importação correta do módulo de serviços
+import apiService from '../../services';
 
 const { width } = Dimensions.get('window');
 
@@ -36,7 +36,7 @@ const RegisterScreen = () => {
   const [secureConfirmTextEntry, setSecureConfirmTextEntry] = useState(true);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
-  // Animações
+  
   const fadeAnim = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(50))[0];
 

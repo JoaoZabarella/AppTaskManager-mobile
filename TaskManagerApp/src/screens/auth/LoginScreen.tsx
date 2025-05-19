@@ -35,7 +35,7 @@ const LoginScreen = () => {
   const [secureTextEntry, setSecureTextEntry] = useState(true);
   const insets = useSafeAreaInsets();
   
-  // Animações
+  
   const fadeAnim = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(50))[0];
   
@@ -70,7 +70,7 @@ const LoginScreen = () => {
     try {
       await login(email, senha); 
     } catch (err: any) {
-      // Mensagens de erro mais amigáveis
+  
       if (err.message && err.message.includes('credenciais')) {
         setError('Email ou senha incorretos. Tente novamente.');
       } else if (err.message && err.message.includes('rede')) {

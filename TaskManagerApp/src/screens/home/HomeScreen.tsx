@@ -289,7 +289,11 @@ const onRefresh = () => {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Ações Rápidas</Text>
           
-          <TouchableOpacity style={styles.actionCard} activeOpacity={0.7}>
+          <TouchableOpacity 
+            style={styles.actionCard} 
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('CreateTask')}
+          >
             <View style={[styles.actionIcon, { backgroundColor: 'rgba(33, 150, 243, 0.15)' }]}>
               <Ionicons name="add-circle" size={30} color="#2196F3" />
             </View>
@@ -371,7 +375,11 @@ const onRefresh = () => {
       </ScrollView>
 
       {/* Botão flutuante para adicionar tarefa */}
-      <TouchableOpacity style={styles.fab} activeOpacity={0.8}>
+      <TouchableOpacity 
+        style={styles.fab}
+        onPress={() => navigation.navigate('CreateTask')} 
+        activeOpacity={0.8}
+      >
         <Ionicons name="add" size={30} color="#fff" />
       </TouchableOpacity>
     </SafeAreaView>
