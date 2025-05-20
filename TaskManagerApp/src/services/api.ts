@@ -322,6 +322,15 @@ const taskService = {
       throw error;
     }
   },
+  async updateTask(taskData: any) {
+  try {
+    const response = await axiosInstance.put(`/tarefas/${taskData.id}`, taskData);
+    return response.data;
+  } catch (error) {
+    errorLog('Erro ao atualizar tarefa:', error);
+    throw error;
+  }
+},
   
 };
 
