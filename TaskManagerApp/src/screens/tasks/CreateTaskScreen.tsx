@@ -19,9 +19,9 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import Toast from 'react-native-toast-message';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import Toast from 'react-native-toast-message';
 import apiService from '../../services';
 import { AppStackParamList } from '../../navigation/AppNavigator';
 
@@ -50,11 +50,16 @@ const CreateTaskScreen = () => {
   const [priorityId, setPriorityId] = useState<number | null>(2); // Padrão: "Média"
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [dueDate, setDueDate] = useState<Date | null>(null);
+  const [dueDateError, setDueDateError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [showDatePicker, setShowDatePicker] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showPriorityModal, setShowPriorityModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
+  
+  // Estados para o seletor de data/hora
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showDatePickerModal, setShowDatePickerModal] = useState(false);
+  const [datePickerMode, setDatePickerMode] = useState<'date' | 'time'>('date');
   
   const [statuses, setStatuses] = useState<Status[]>([
     { id: 1, texto: 'Novo' },
@@ -74,7 +79,7 @@ const CreateTaskScreen = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
   
- 
+  // Animações
   const fadeAnim = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(30))[0];
 
@@ -139,20 +144,66 @@ const CreateTaskScreen = () => {
   };
   
   const handleDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(false);
-    if (selectedDate) {
-      setDueDate(selectedDate);
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+      if (!selectedDate) return;
+      
+      if (datePickerMode === 'date') {
+        // Após selecionar a data, abrir para selecionar a hora
+        setDatePickerMode('time');
+        setShowDatePicker(true);
+        
+        // Guardar a data temporariamente
+        const tempDate = selectedDate;
+        if (dueDate) {
+          tempDate.setHours(dueDate.getHours());
+          tempDate.setMinutes(dueDate.getMinutes());
+        }
+        setDueDate(tempDate);
+      } else {
+        // Após selecionar a hora, finalizar
+        setDatePickerMode('date');
+        
+        if (dueDate) {
+          // Combinar data e hora
+          const finalDate = new Date(dueDate);
+          finalDate.setHours(selectedDate.getHours());
+          finalDate.setMinutes(selectedDate.getMinutes());
+          setDueDate(finalDate);
+        } else {
+          setDueDate(selectedDate);
+        }
+      }
+    } else {
+      // iOS atualiza a data em tempo real
+      if (selectedDate) {
+        setDueDate(selectedDate);
+      }
+    }
+    
+    setDueDateError(null);
+  };
+  
+  const openDatePicker = () => {
+    if (Platform.OS === 'android') {
+      setDatePickerMode('date');
+      setShowDatePicker(true);
+    } else {
+      setDatePickerMode('date');
+      setShowDatePickerModal(true);
     }
   };
   
   const validateForm = () => {
+    let isValid = true;
+    
     if (!title.trim()) {
       Toast.show({
         type: 'error',
         text1: 'Erro',
         text2: 'O título da tarefa é obrigatório',
       });
-      return false;
+      isValid = false;
     }
     
     if (!statusId) {
@@ -161,7 +212,7 @@ const CreateTaskScreen = () => {
         text1: 'Erro',
         text2: 'O status da tarefa é obrigatório',
       });
-      return false;
+      isValid = false;
     }
     
     if (!priorityId) {
@@ -170,10 +221,10 @@ const CreateTaskScreen = () => {
         text1: 'Erro',
         text2: 'A prioridade da tarefa é obrigatória',
       });
-      return false;
+      isValid = false;
     }
     
-    return true;
+    return isValid;
   };
   
   const handleCreateTask = async () => {
@@ -181,12 +232,15 @@ const CreateTaskScreen = () => {
     
     setLoading(true);
     try {
+      // Não manipular o fuso horário ao enviar para o backend
+      const offsetDateTime = dueDate ? dueDate.toISOString() : null;
+      
       const taskData = {
         titulo: title,
         descricao: description,
         statusId,
         prioridadeId: priorityId,
-        prazo: dueDate ? dueDate.toISOString() : null,
+        prazo: offsetDateTime,
         categoriaId: categoryId,
       };
       
@@ -198,7 +252,6 @@ const CreateTaskScreen = () => {
         text2: 'Tarefa criada com sucesso!',
       });
       
-     
       navigation.goBack();
       
     } catch (error) {
@@ -265,7 +318,7 @@ const CreateTaskScreen = () => {
               },
             ]}
           >
-            {/* Título */}
+            {/* Campo Título */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Título *</Text>
               <View style={styles.inputContainer}>
@@ -280,7 +333,7 @@ const CreateTaskScreen = () => {
               </View>
             </View>
             
-            {/* Descrição */}
+            {/* Campo Descrição */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Descrição</Text>
               <View style={[styles.inputContainer, styles.textAreaContainer]}>
@@ -298,7 +351,7 @@ const CreateTaskScreen = () => {
               </View>
             </View>
             
-            {/* Status */}
+            {/* Campo Status */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Status *</Text>
               <TouchableOpacity
@@ -310,7 +363,7 @@ const CreateTaskScreen = () => {
               </TouchableOpacity>
             </View>
             
-            {/* Prioridade */}
+            {/* Campo Prioridade */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Prioridade *</Text>
               <TouchableOpacity
@@ -334,7 +387,7 @@ const CreateTaskScreen = () => {
               </TouchableOpacity>
             </View>
             
-            {/* Categoria */}
+            {/* Campo Categoria */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Categoria</Text>
               <TouchableOpacity
@@ -355,18 +408,18 @@ const CreateTaskScreen = () => {
                 )}
               </TouchableOpacity>
             </View>
-            
-            {/* Prazo */}
+
+            {/* Campo Prazo */}
             <View style={styles.inputGroup}>
               <Text style={styles.inputLabel}>Prazo</Text>
               <TouchableOpacity
                 style={styles.selectContainer}
-                onPress={() => setShowDatePicker(true)}
+                onPress={openDatePicker}
               >
-                <Text style={styles.selectText}>
-                  {dueDate ? format(dueDate, 'PPP', { locale: pt }) : 'Definir prazo (opcional)'}
-                </Text>
                 <Ionicons name="calendar-outline" size={20} color="#94A3B8" />
+                <Text style={styles.selectText}>
+                  {dueDate ? format(dueDate, 'dd MMM yyyy, HH:mm', { locale: pt }) : 'Definir prazo (opcional)'}
+                </Text>
               </TouchableOpacity>
             </View>
             
@@ -399,17 +452,17 @@ const CreateTaskScreen = () => {
         </ScrollView>
       </KeyboardAvoidingView>
       
-      {/* Date Picker */}
-      {showDatePicker && (
+      {/* DateTimePicker para Android */}
+      {Platform.OS === 'android' && showDatePicker && (
         <DateTimePicker
           value={dueDate || new Date()}
-          mode="date"
+          mode={datePickerMode}
           display="default"
           onChange={handleDateChange}
           minimumDate={new Date()}
         />
       )}
-      
+
       {/* Status Modal */}
       <Modal
         visible={showStatusModal}
@@ -582,6 +635,57 @@ const CreateTaskScreen = () => {
           </View>
         </View>
       </Modal>
+      
+      {/* Modal de seleção de data para iOS */}
+      <Modal
+        visible={showDatePickerModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowDatePickerModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.datePickerModalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                {datePickerMode === 'date' ? 'Selecione a data' : 'Selecione a hora'}
+              </Text>
+              <TouchableOpacity onPress={() => setShowDatePickerModal(false)}>
+                <Ionicons name="close" size={24} color="#fff" />
+              </TouchableOpacity>
+            </View>
+            
+            <DateTimePicker
+              value={dueDate || new Date()}
+              mode={datePickerMode}
+              display="spinner"
+              onChange={handleDateChange}
+              minimumDate={new Date()}
+              textColor="#fff"
+            />
+            
+            <View style={styles.datePickerButtonContainer}>
+              {datePickerMode === 'date' ? (
+                <TouchableOpacity
+                  style={styles.nextButton}
+                  onPress={() => setDatePickerMode('time')}
+                >
+                  <Text style={styles.nextButtonText}>Próximo</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={styles.doneButton}
+                  onPress={() => {
+                    setDatePickerMode('date');
+                    setShowDatePickerModal(false);
+                  }}
+                >
+                  <Text style={styles.doneButtonText}>Confirmar</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 };
@@ -664,6 +768,8 @@ const styles = StyleSheet.create({
   selectText: {
     color: '#fff',
     fontSize: 16,
+    marginLeft: 8,
+    flex: 1,
   },
   priorityContainer: {
     flexDirection: 'row',
@@ -770,6 +876,41 @@ const styles = StyleSheet.create({
     color: '#94A3B8',
     marginLeft: 8,
     fontSize: 14,
+  },
+  // Estilos para o datePickerModal
+  datePickerModalContainer: {
+    backgroundColor: '#1E293B',
+    borderRadius: 16,
+    padding: 20,
+    width: '90%',
+    maxHeight: '80%',
+  },
+  datePickerButtonContainer: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 20,
+  },
+  nextButton: {
+    backgroundColor: '#2196F3',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  nextButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  doneButton: {
+    backgroundColor: '#4CAF50',
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+  },
+  doneButtonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
   },
 });
 

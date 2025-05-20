@@ -184,14 +184,15 @@ const TaskDetailScreen = () => {
     }
   };
   
-  const formatDate = (dateString?: string | null) => {
-    if (!dateString) return 'Não definido';
-    try {
-      return format(new Date(dateString), 'PPpp', { locale: pt });
-    } catch (e) {
-      return 'Data inválida';
-    }
-  };
+const formatDate = (dateString?: string | null) => {
+  if (!dateString) return 'Não definido';
+  try {
+    const date = new Date(dateString);
+    return format(date, 'dd MMM yyyy, HH:mm', { locale: pt });
+  } catch (e) {
+    return 'Data inválida';
+  }
+};
   
   const isPastDue = (dateString?: string | null) => {
     if (!dateString) return false;
