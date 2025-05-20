@@ -4,13 +4,14 @@ import HomeScreen from '../screens/home/HomeScreen';
 import TaskListScreen from '../screens/tasks/TaskListScreen'; 
 import TaskDetailScreen from '../screens/tasks/TaskDetailScreen'; 
 import CreateTaskScreen from '../screens/tasks/CreateTaskScreen';
+import EditTaskScreen from '../screens/tasks/EditTaskScreen'; 
 
 export type AppStackParamList = {
   Home: undefined;
   TaskList: undefined;
   TaskDetail: { taskId: number };
   CreateTask: undefined;
-  EditTask: { taskId: number };
+  EditTask: { taskId: number }; 
   Categories: undefined;
   Profile: undefined;
   Settings: undefined;
@@ -29,6 +30,7 @@ export default function AppNavigator() {
       <Stack.Screen name="TaskList" component={TaskListScreen} /> 
       <Stack.Screen name="TaskDetail" component={TaskDetailScreen} />
       <Stack.Screen name="CreateTask" component={CreateTaskScreen} />
+      <Stack.Screen name="EditTask" component={EditTaskScreen} /> 
     </Stack.Navigator>
   );
 }

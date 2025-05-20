@@ -15,17 +15,18 @@ import {
   Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { Ionicons } from '@expo/vector-icons';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import Toast from 'react-native-toast-message';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import apiService from '../../services';
 import { AppStackParamList } from '../../navigation/AppNavigator';
+import apiService from '../../services';
 
-type CreateTaskScreenNavigationProp = StackNavigationProp<AppStackParamList, 'CreateTask'>;
+type EditTaskScreenRouteProp = RouteProp<AppStackParamList, 'EditTask'>;
+type EditTaskScreenNavigationProp = StackNavigationProp<AppStackParamList, 'EditTask'>;
 
 interface Category {
   id: number;
@@ -42,25 +43,46 @@ interface Priority {
   texto: string;
 }
 
-const CreateTaskScreen = () => {
-  const navigation = useNavigation<CreateTaskScreenNavigationProp>();
+interface TaskDetails {
+  id: number;
+  titulo: string;
+  descricao: string;
+  statusId: number;
+  statusTexto: string;
+  prioridadeId: number;
+  prioridadeTexto: string;
+  dataCriacao: string;
+  prazo: string | null;
+  dataConclusao: string | null;
+  categoriaId: number | null;
+  categoriaNome: string | null;
+  concluida: string;
+}
+
+const EditTaskScreen = () => {
+  const route = useRoute<EditTaskScreenRouteProp>();
+  const navigation = useNavigation<EditTaskScreenNavigationProp>();
+  const { taskId } = route.params;
+
+ 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [statusId, setStatusId] = useState<number | null>(1); 
-  const [priorityId, setPriorityId] = useState<number | null>(2); 
+  const [statusId, setStatusId] = useState<number | null>(null);
+  const [priorityId, setPriorityId] = useState<number | null>(null);
   const [categoryId, setCategoryId] = useState<number | null>(null);
   const [dueDate, setDueDate] = useState<Date | null>(null);
-  const [dueDateError, setDueDateError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [originalTask, setOriginalTask] = useState<TaskDetails | null>(null);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [showPriorityModal, setShowPriorityModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
-  
-
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showDatePickerModal, setShowDatePickerModal] = useState(false);
   const [datePickerMode, setDatePickerMode] = useState<'date' | 'time'>('date');
   
+
   const [statuses, setStatuses] = useState<Status[]>([
     { id: 1, texto: 'Novo' },
     { id: 2, texto: 'Em Andamento' },
@@ -68,46 +90,91 @@ const CreateTaskScreen = () => {
     { id: 4, texto: 'Bloqueado' },
     { id: 5, texto: 'Cancelado' },
   ]);
-  
   const [priorities, setPriorities] = useState<Priority[]>([
     { id: 1, texto: 'Baixa' },
     { id: 2, texto: 'Média' },
     { id: 3, texto: 'Alta' },
     { id: 4, texto: 'Urgente' },
   ]);
-  
   const [categories, setCategories] = useState<Category[]>([]);
   const [loadingCategories, setLoadingCategories] = useState(false);
   
-
+  
   const fadeAnim = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(30))[0];
 
-  useEffect(() => {
-    loadCategories();
-    
-   
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 500,
-        useNativeDriver: true,
-      }),
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 600,
-        useNativeDriver: true,
-      }),
-    ]).start();
-  }, []);
   
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        await Promise.all([
+          loadTaskDetails(),
+          loadCategories()
+        ]);
+      } catch (error) {
+        console.error('Error loading data:', error);
+        Toast.show({
+          type: 'error',
+          text1: 'Erro',
+          text2: 'Não foi possível carregar os dados da tarefa',
+        });
+      } finally {
+        
+        Animated.parallel([
+          Animated.timing(fadeAnim, {
+            toValue: 1,
+            duration: 500,
+            useNativeDriver: true,
+          }),
+          Animated.timing(slideAnim, {
+            toValue: 0,
+            duration: 600,
+            useNativeDriver: true,
+          }),
+        ]).start();
+      }
+    };
+
+    loadData();
+  }, [taskId]);
+
+  const loadTaskDetails = async () => {
+    setLoading(true);
+    try {
+      const response = await apiService.api.task.getTaskById(taskId);
+      setOriginalTask(response);
+      
+    
+      setTitle(response.titulo);
+      setDescription(response.descricao || '');
+      setStatusId(response.statusId);
+      setPriorityId(response.prioridadeId);
+      setCategoryId(response.categoriaId);
+      
+      if (response.prazo) {
+        setDueDate(new Date(response.prazo));
+      }
+      
+      setLoading(false);
+    } catch (error) {
+      console.error('Error loading task details:', error);
+      setLoading(false);
+      Toast.show({
+        type: 'error',
+        text1: 'Erro',
+        text2: 'Não foi possível carregar os detalhes da tarefa',
+      });
+      navigation.goBack();
+    }
+  };
+
   const loadCategories = async () => {
     setLoadingCategories(true);
     try {
       const response = await apiService.api.category.getCategories();
       setCategories(response.categorias || []);
     } catch (error) {
-      console.error('Erro ao carregar categorias:', error);
+      console.error('Error loading categories:', error);
       Toast.show({
         type: 'error',
         text1: 'Erro',
@@ -117,7 +184,8 @@ const CreateTaskScreen = () => {
       setLoadingCategories(false);
     }
   };
-  
+
+ 
   const getStatusText = () => {
     const status = statuses.find(s => s.id === statusId);
     return status ? status.texto : 'Selecione um status';
@@ -142,6 +210,7 @@ const CreateTaskScreen = () => {
       default: return '#94A3B8';
     }
   };
+
   
   const handleDateChange = (event: any, selectedDate?: Date) => {
     if (Platform.OS === 'android') {
@@ -149,11 +218,10 @@ const CreateTaskScreen = () => {
       if (!selectedDate) return;
       
       if (datePickerMode === 'date') {
-       
+        
         setDatePickerMode('time');
         setShowDatePicker(true);
-        
-  
+      
         const tempDate = selectedDate;
         if (dueDate) {
           tempDate.setHours(dueDate.getHours());
@@ -161,11 +229,11 @@ const CreateTaskScreen = () => {
         }
         setDueDate(tempDate);
       } else {
-        
+       
         setDatePickerMode('date');
         
         if (dueDate) {
-         
+       
           const finalDate = new Date(dueDate);
           finalDate.setHours(selectedDate.getHours());
           finalDate.setMinutes(selectedDate.getMinutes());
@@ -175,13 +243,11 @@ const CreateTaskScreen = () => {
         }
       }
     } else {
-    
+      
       if (selectedDate) {
         setDueDate(selectedDate);
       }
     }
-    
-    setDueDateError(null);
   };
   
   const openDatePicker = () => {
@@ -193,6 +259,11 @@ const CreateTaskScreen = () => {
       setShowDatePickerModal(true);
     }
   };
+
+  const clearDueDate = () => {
+    setDueDate(null);
+  };
+
   
   const validateForm = () => {
     let isValid = true;
@@ -226,64 +297,93 @@ const CreateTaskScreen = () => {
     
     return isValid;
   };
-  
-  const handleCreateTask = async () => {
+
+  const isTaskModified = () => {
+    if (!originalTask) return false;
+    
+    const prazoOriginal = originalTask.prazo ? new Date(originalTask.prazo).toISOString() : null;
+    const prazoAtual = dueDate ? dueDate.toISOString() : null;
+    
+    return title !== originalTask.titulo ||
+           description !== (originalTask.descricao || '') ||
+           statusId !== originalTask.statusId ||
+           priorityId !== originalTask.prioridadeId ||
+           categoryId !== originalTask.categoriaId ||
+           prazoAtual !== prazoOriginal;
+  };
+
+
+  const handleUpdateTask = async () => {
     if (!validateForm()) return;
     
-    setLoading(true);
+    if (!isTaskModified()) {
+      Toast.show({
+        type: 'info',
+        text1: 'Informação',
+        text2: 'Nenhuma alteração foi feita na tarefa',
+      });
+      navigation.goBack();
+      return;
+    }
+    
+    setSaving(true);
     try {
-      
-      const offsetDateTime = dueDate ? dueDate.toISOString() : null;
-      
       const taskData = {
+        id: taskId,
         titulo: title,
         descricao: description,
         statusId,
         prioridadeId: priorityId,
-        prazo: offsetDateTime,
+        prazo: dueDate ? dueDate.toISOString() : null,
         categoriaId: categoryId,
       };
       
-      await apiService.api.task.createTask(taskData);
+      await apiService.api.task.updateTask(taskData);
       
       Toast.show({
         type: 'success',
         text1: 'Sucesso',
-        text2: 'Tarefa criada com sucesso!',
+        text2: 'Tarefa atualizada com sucesso!',
       });
       
       navigation.goBack();
       
     } catch (error) {
-      console.error('Erro ao criar tarefa:', error);
+      console.error('Error updating task:', error);
       Toast.show({
         type: 'error',
         text1: 'Erro',
-        text2: 'Não foi possível criar a tarefa',
+        text2: 'Não foi possível atualizar a tarefa',
       });
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
+
   
   const handleCancel = () => {
-    Alert.alert(
-      'Cancelar criação',
-      'Tem certeza que deseja cancelar a criação da tarefa? Os dados preenchidos serão perdidos.',
-      [
-        {
-          text: 'Não',
-          style: 'cancel',
-        },
-        {
-          text: 'Sim',
-          onPress: () => navigation.goBack(),
-        },
-      ],
-      { cancelable: true }
-    );
+    if (isTaskModified()) {
+      Alert.alert(
+        'Cancelar edição',
+        'Tem certeza que deseja cancelar? Todas as alterações serão perdidas.',
+        [
+          {
+            text: 'Não',
+            style: 'cancel',
+          },
+          {
+            text: 'Sim',
+            onPress: () => navigation.goBack(),
+          },
+        ],
+        { cancelable: true }
+      );
+    } else {
+      navigation.goBack();
+    }
   };
 
+  
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" backgroundColor="#0F172A" />
@@ -296,163 +396,181 @@ const CreateTaskScreen = () => {
         >
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Nova Tarefa</Text>
+        <Text style={styles.headerTitle}>Editar Tarefa</Text>
         <View style={{ width: 40 }} />
       </View>
       
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          style={styles.scrollContainer}
-          contentContainerStyle={styles.contentContainer}
-          keyboardShouldPersistTaps="handled"
+      {loading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color="#2196F3" />
+          <Text style={styles.loadingText}>Carregando tarefa...</Text>
+        </View>
+      ) : (
+        <KeyboardAvoidingView
+          style={{ flex: 1 }}
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
-          <Animated.View
-            style={[
-              styles.formSection,
-              {
-                opacity: fadeAnim,
-                transform: [{ translateY: slideAnim }],
-              },
-            ]}
+          <ScrollView
+            style={styles.scrollContainer}
+            contentContainerStyle={styles.contentContainer}
+            keyboardShouldPersistTaps="handled"
           >
-            {/* Campo Título */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Título *</Text>
-              <View style={styles.inputContainer}>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Digite o título da tarefa"
-                  placeholderTextColor="#94A3B8"
-                  value={title}
-                  onChangeText={setTitle}
-                  maxLength={100}
-                />
+            <Animated.View
+              style={[
+                styles.formSection,
+                {
+                  opacity: fadeAnim,
+                  transform: [{ translateY: slideAnim }],
+                },
+              ]}
+            >
+              {/* Campo Título */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Título *</Text>
+                <View style={styles.inputContainer}>
+                  <TextInput
+                    style={styles.input}
+                    placeholder="Digite o título da tarefa"
+                    placeholderTextColor="#94A3B8"
+                    value={title}
+                    onChangeText={setTitle}
+                    maxLength={100}
+                  />
+                </View>
               </View>
-            </View>
-            
-            {/* Campo Descrição */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Descrição</Text>
-              <View style={[styles.inputContainer, styles.textAreaContainer]}>
-                <TextInput
-                  style={[styles.input, styles.textArea]}
-                  placeholder="Digite uma descrição (opcional)"
-                  placeholderTextColor="#94A3B8"
-                  value={description}
-                  onChangeText={setDescription}
-                  multiline={true}
-                  numberOfLines={4}
-                  maxLength={500}
-                  textAlignVertical="top"
-                />
-              </View>
-            </View>
-            
-            {/* Campo Status */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Status *</Text>
-              <TouchableOpacity
-                style={styles.selectContainer}
-                onPress={() => setShowStatusModal(true)}
-              >
-                <Text style={styles.selectText}>{getStatusText()}</Text>
-                <Ionicons name="chevron-down" size={20} color="#94A3B8" />
-              </TouchableOpacity>
-            </View>
-            
-            {/* Campo Prioridade */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Prioridade *</Text>
-              <TouchableOpacity
-                style={styles.selectContainer}
-                onPress={() => setShowPriorityModal(true)}
-              >
-                {priorityId ? (
-                  <View style={styles.priorityContainer}>
-                    <View 
-                      style={[
-                        styles.priorityIndicator, 
-                        { backgroundColor: getPriorityColor(priorityId) }
-                      ]} 
-                    />
-                    <Text style={styles.selectText}>{getPriorityText()}</Text>
-                  </View>
-                ) : (
-                  <Text style={styles.selectText}>Selecione uma prioridade</Text>
-                )}
-                <Ionicons name="chevron-down" size={20} color="#94A3B8" />
-              </TouchableOpacity>
-            </View>
-            
-            {/* Campo Categoria */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Categoria</Text>
-              <TouchableOpacity
-                style={styles.selectContainer}
-                onPress={() => setShowCategoryModal(true)}
-                disabled={loadingCategories}
-              >
-                {loadingCategories ? (
-                  <View style={styles.loadingContainer}>
-                    <ActivityIndicator size="small" color="#2196F3" />
-                    <Text style={styles.loadingText}>Carregando categorias...</Text>
-                  </View>
-                ) : (
-                  <>
-                    <Text style={styles.selectText}>{getCategoryText()}</Text>
-                    <Ionicons name="chevron-down" size={20} color="#94A3B8" />
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-
-            {/* Campo Prazo */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.inputLabel}>Prazo</Text>
-              <TouchableOpacity
-                style={styles.selectContainer}
-                onPress={openDatePicker}
-              >
-                <Ionicons name="calendar-outline" size={20} color="#94A3B8" />
-                <Text style={styles.selectText}>
-                  {dueDate ? format(dueDate, 'dd MMM yyyy, HH:mm', { locale: pt }) : 'Definir prazo (opcional)'}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            
-            {/* Botões */}
-            <View style={styles.buttonsContainer}>
-              <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={handleCancel}
-                disabled={loading}
-              >
-                <Text style={styles.cancelButtonText}>Cancelar</Text>
-              </TouchableOpacity>
               
-              <TouchableOpacity
-                style={styles.createButton}
-                onPress={handleCreateTask}
-                disabled={loading}
-              >
-                {loading ? (
-                  <ActivityIndicator size="small" color="#fff" />
-                ) : (
-                  <>
-                    <Ionicons name="checkmark" size={20} color="#fff" style={styles.buttonIcon} />
-                    <Text style={styles.createButtonText}>Criar Tarefa</Text>
-                  </>
-                )}
-              </TouchableOpacity>
-            </View>
-          </Animated.View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+              {/* Campo Descrição */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Descrição</Text>
+                <View style={[styles.inputContainer, styles.textAreaContainer]}>
+                  <TextInput
+                    style={[styles.input, styles.textArea]}
+                    placeholder="Digite uma descrição (opcional)"
+                    placeholderTextColor="#94A3B8"
+                    value={description}
+                    onChangeText={setDescription}
+                    multiline={true}
+                    numberOfLines={4}
+                    maxLength={500}
+                    textAlignVertical="top"
+                  />
+                </View>
+              </View>
+              
+              {/* Campo Status */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Status *</Text>
+                <TouchableOpacity
+                  style={styles.selectContainer}
+                  onPress={() => setShowStatusModal(true)}
+                >
+                  <Text style={styles.selectText}>{getStatusText()}</Text>
+                  <Ionicons name="chevron-down" size={20} color="#94A3B8" />
+                </TouchableOpacity>
+              </View>
+              
+              {/* Campo Prioridade */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Prioridade *</Text>
+                <TouchableOpacity
+                  style={styles.selectContainer}
+                  onPress={() => setShowPriorityModal(true)}
+                >
+                  {priorityId ? (
+                    <View style={styles.priorityContainer}>
+                      <View 
+                        style={[
+                          styles.priorityIndicator, 
+                          { backgroundColor: getPriorityColor(priorityId) }
+                        ]} 
+                      />
+                      <Text style={styles.selectText}>{getPriorityText()}</Text>
+                    </View>
+                  ) : (
+                    <Text style={styles.selectText}>Selecione uma prioridade</Text>
+                  )}
+                  <Ionicons name="chevron-down" size={20} color="#94A3B8" />
+                </TouchableOpacity>
+              </View>
+              
+              {/* Campo Categoria */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Categoria</Text>
+                <TouchableOpacity
+                  style={styles.selectContainer}
+                  onPress={() => setShowCategoryModal(true)}
+                  disabled={loadingCategories}
+                >
+                  {loadingCategories ? (
+                    <View style={styles.loadingContainer}>
+                      <ActivityIndicator size="small" color="#2196F3" />
+                      <Text style={styles.loadingText}>Carregando categorias...</Text>
+                    </View>
+                  ) : (
+                    <>
+                      <Text style={styles.selectText}>{getCategoryText()}</Text>
+                      <Ionicons name="chevron-down" size={20} color="#94A3B8" />
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+
+              {/* Campo Prazo */}
+              <View style={styles.inputGroup}>
+                <Text style={styles.inputLabel}>Prazo</Text>
+                <View style={styles.dateContainer}>
+                  <TouchableOpacity
+                    style={styles.selectContainer}
+                    onPress={openDatePicker}
+                  >
+                    <Ionicons name="calendar-outline" size={20} color="#94A3B8" />
+                    <Text style={styles.selectText}>
+                      {dueDate ? format(dueDate, 'dd MMM yyyy, HH:mm', { locale: pt }) : 'Definir prazo (opcional)'}
+                    </Text>
+                  </TouchableOpacity>
+                  
+                  {dueDate && (
+                    <TouchableOpacity
+                      style={styles.clearDateButton}
+                      onPress={clearDueDate}
+                    >
+                      <Ionicons name="close-circle" size={24} color="#94A3B8" />
+                    </TouchableOpacity>
+                  )}
+                </View>
+              </View>
+              
+              {/* Botões */}
+              <View style={styles.buttonsContainer}>
+                <TouchableOpacity
+                  style={styles.cancelButton}
+                  onPress={handleCancel}
+                  disabled={saving}
+                >
+                  <Text style={styles.cancelButtonText}>Cancelar</Text>
+                </TouchableOpacity>
+                
+                <TouchableOpacity
+                  style={styles.saveButton}
+                  onPress={handleUpdateTask}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <>
+                      <Ionicons name="save-outline" size={20} color="#fff" style={styles.buttonIcon} />
+                      <Text style={styles.saveButtonText}>Salvar Alterações</Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+              </View>
+            </Animated.View>
+          </ScrollView>
+        </KeyboardAvoidingView>
+      )}
       
-      {/* DateTimePicker para Android */}
+      {/* DateTimePicker for Android */}
       {Platform.OS === 'android' && showDatePicker && (
         <DateTimePicker
           value={dueDate || new Date()}
@@ -717,6 +835,17 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#fff',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: '#94A3B8',
+  },
   scrollContainer: {
     flex: 1,
   },
@@ -764,6 +893,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    flex: 1,
   },
   selectText: {
     color: '#fff',
@@ -780,6 +910,14 @@ const styles = StyleSheet.create({
     height: 12,
     borderRadius: 6,
     marginRight: 8,
+  },
+  dateContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  clearDateButton: {
+    padding: 8,
+    marginLeft: 8,
   },
   buttonsContainer: {
     flexDirection: 'row',
@@ -801,7 +939,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
   },
-  createButton: {
+  saveButton: {
     flex: 2,
     backgroundColor: '#2196F3',
     paddingVertical: 16,
@@ -814,7 +952,7 @@ const styles = StyleSheet.create({
   buttonIcon: {
     marginRight: 8,
   },
-  createButtonText: {
+  saveButtonText: {
     color: '#fff',
     fontSize: 16,
     fontWeight: '600',
@@ -868,16 +1006,7 @@ const styles = StyleSheet.create({
     color: '#2196F3',
     fontWeight: '500',
   },
-  loadingContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  loadingText: {
-    color: '#94A3B8',
-    marginLeft: 8,
-    fontSize: 14,
-  },
-  // Estilos para o datePickerModal
+
   datePickerModalContainer: {
     backgroundColor: '#1E293B',
     borderRadius: 16,
@@ -914,4 +1043,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default CreateTaskScreen;
+export default EditTaskScreen;
