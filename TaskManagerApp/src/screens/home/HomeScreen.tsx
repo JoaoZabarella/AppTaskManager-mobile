@@ -319,16 +319,20 @@ const onRefresh = () => {
             <Ionicons name="chevron-forward" size={24} color="#94A3B8" />
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.actionCard} activeOpacity={0.7}>
-            <View style={[styles.actionIcon, { backgroundColor: 'rgba(255, 152, 0, 0.15)' }]}>
-              <Ionicons name="folder-open" size={30} color="#FF9800" />
-            </View>
-            <View style={styles.actionContent}>
-              <Text style={styles.actionText}>Categorias</Text>
-              <Text style={styles.actionSubtext}>Organize suas tarefas por categoria</Text>
+          <TouchableOpacity 
+          style={styles.actionCard} 
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('Categories')}
+          >
+          <View style={[styles.actionIcon, { backgroundColor: 'rgba(255, 152, 0, 0.15)' }]}>
+            <Ionicons name="folder-open" size={30} color="#FF9800" />
+          </View>
+          <View style={styles.actionContent}>
+            <Text style={styles.actionText}>Categorias</Text>
+            <Text style={styles.actionSubtext}>Organize suas tarefas por categoria</Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color="#94A3B8" />
-          </TouchableOpacity>
+            </TouchableOpacity>
         </View>
 
         {/* Tarefas Recentes */}
