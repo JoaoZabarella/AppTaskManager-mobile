@@ -332,6 +332,26 @@ const taskService = {
   }
 },
   
+async deleteTask(taskId: number) {
+  try {
+    await axiosInstance.delete(`/tarefas/deletar/${taskId}`);
+  } catch (error) {
+    errorLog('Erro ao excluir tarefa:', error);
+    throw error;
+  }
+},
+
+
+async deleteBulkTasks(taskIds: number[]) {
+  try {
+    await axiosInstance.delete('/tarefas/deletar/multiplas', {
+      data: { tarefasId: taskIds }
+    });
+  } catch (error) {
+    errorLog('Erro ao excluir múltiplas tarefas:', error);
+    throw error;
+  }
+},
 };
 
 
@@ -355,6 +375,25 @@ const categoryService = {
       throw error;
     }
   },
+  
+  async updateCategory(categoryId: number, categoryData: any) {
+    try {
+      const response = await axiosInstance.put(`/categorias/${categoryId}`, categoryData);
+      return response.data;
+    } catch (error) {
+      errorLog('Erro ao atualizar categoria:', error);
+      throw error;
+    }
+  },
+  
+  async deleteCategory(categoryId: number) {
+    try {
+      await axiosInstance.delete(`/categorias/${categoryId}`);
+    } catch (error) {
+      errorLog('Erro ao excluir categoria:', error);
+      throw error;
+    }
+  }
 };
 
 export default {
