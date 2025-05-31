@@ -10,6 +10,7 @@ import {
   TextInput,
   Modal,
   StatusBar,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -71,6 +72,12 @@ const TaskListScreen = () => {
     { id: 4, texto: 'Urgente' },
   ]);
   const [categorias, setCategorias] = useState<{ id: number; nome: string }[]>([]);
+
+  const [selectedTasks, setSelectedTasks] = useState<number[]>([]);
+  const [selectMode, setSelectMode] = useState(false);
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
+  const [alertType, setAlertType] = useState<'success' | 'error' | 'info' | 'warning'>('info');
 
   useEffect(() => {
     loadTasks();
@@ -252,25 +259,113 @@ const TaskListScreen = () => {
     }
   };
 
+  const toggleSelectMode = () => {
+    setSelectMode(!selectMode);
+    if (selectMode) {
+      setSelectedTasks([]);
+    }
+  };
+
+  const toggleSelectTask = (taskId: number) => {
+    if (selectedTasks.includes(taskId)) {
+      setSelectedTasks(selectedTasks.filter(id => id !== taskId));
+    } else {
+      setSelectedTasks([...selectedTasks, taskId]);
+    }
+  };
+
+  const selectAllTasks = () => {
+    if (selectedTasks.length === tasks.length) {
+      setSelectedTasks([]);
+    } else {
+      setSelectedTasks(tasks.map(task => task.id));
+    }
+  };
+
+  const showAlert = (title: string, message: string, type: 'success' | 'error' | 'info' | 'warning') => {
+    setAlertType(type);
+    setAlertMessage(message);
+    setAlertVisible(true);
+  };
+
+  const confirmArchiveSelectedTasks = () => {
+    if (selectedTasks.length === 0) {
+      showAlert('Atenção', 'Selecione pelo menos uma tarefa para arquivar', 'warning');
+      return;
+    }
+
+    Alert.alert(
+      'Arquivar Tarefas',
+      `Tem certeza que deseja arquivar ${selectedTasks.length} tarefa(s)?`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Arquivar', onPress: archiveSelectedTasks }
+      ]
+    );
+  };
+
+  const archiveSelectedTasks = async () => {
+    try {
+      setLoading(true);
+      await apiService.api.task.arquivarMultiplasTarefas({ tarefasId: selectedTasks });
+      setTasks(tasks.filter(task => !selectedTasks.includes(task.id)));
+      setSelectedTasks([]);
+      setSelectMode(false);
+      showAlert('Sucesso', 'Tarefas arquivadas com sucesso!', 'success');
+    } catch (error) {
+      console.error('Erro ao arquivar tarefas:', error);
+      showAlert('Erro', 'Não foi possível arquivar as tarefas', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const confirmDeleteSelectedTasks = () => {
+    if (selectedTasks.length === 0) {
+      showAlert('Atenção', 'Selecione pelo menos uma tarefa para excluir', 'warning');
+      return;
+    }
+
+    Alert.alert(
+      'Excluir Tarefas',
+      `Tem certeza que deseja excluir ${selectedTasks.length} tarefa(s)? Esta ação não pode ser desfeita.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Excluir', style: 'destructive', onPress: deleteSelectedTasks }
+      ]
+    );
+  };
+
+  const deleteSelectedTasks = async () => {
+    try {
+      setLoading(true);
+      await apiService.api.task.excluirMultiplasTarefas({ tarefasId: selectedTasks });
+      setTasks(tasks.filter(task => !selectedTasks.includes(task.id)));
+      setSelectedTasks([]);
+      setSelectMode(false);
+      showAlert('Sucesso', 'Tarefas excluídas com sucesso!', 'success');
+    } catch (error) {
+      console.error('Erro ao excluir tarefas:', error);
+      showAlert('Erro', 'Não foi possível excluir as tarefas', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getPriorityColor = (prioridadeId: number) => {
+    switch (prioridadeId) {
+      case 1: return '#4CAF50'; // Baixa
+      case 2: return '#FF9800'; // Média
+      case 3: return '#F44336'; // Alta
+      case 4: return '#9C27B0'; // Urgente
+      default: return '#2196F3';
+    }
+  };
+
   const renderTaskItem = ({ item }: { item: Task }) => {
     const isPastDue = item.prazo && new Date(item.prazo) < new Date() && !item.dataConclusao;
     const isCompleted = item.dataConclusao !== null;
-
-    let priorityColor = '#2196F3'; 
-    switch (item.prioridadeId) {
-      case 1: 
-        priorityColor = '#4CAF50'; 
-        break;
-      case 2: 
-        priorityColor = '#FF9800'; 
-        break;
-      case 3: 
-        priorityColor = '#F44336'; 
-        break;
-      case 4: 
-        priorityColor = '#9C27B0'; 
-        break;
-    }
+    const isSelected = selectedTasks.includes(item.id);
 
     return (
       <TouchableOpacity
@@ -278,13 +373,26 @@ const TaskListScreen = () => {
           styles.taskItem,
           isCompleted && styles.completedTask,
           isPastDue && styles.pastDueTask,
+          isSelected && styles.selectedTask,
         ]}
-        onPress={() => navigation.navigate('TaskDetail', { taskId: item.id })}
+        onPress={() =>
+          selectMode
+            ? toggleSelectTask(item.id)
+            : navigation.navigate('TaskDetail', { taskId: item.id })
+        }
         activeOpacity={0.7}
       >
         <View style={styles.taskHeader}>
+          {selectMode && (
+            <TouchableOpacity
+              style={[styles.checkboxContainer, isSelected && styles.checkboxSelected]}
+              onPress={() => toggleSelectTask(item.id)}
+            >
+              {isSelected && <Ionicons name="checkmark" size={18} color="#fff" />}
+            </TouchableOpacity>
+          )}
           <View style={styles.taskTitleContainer}>
-            <View style={[styles.priorityIndicator, { backgroundColor: priorityColor }]} />
+            <View style={[styles.priorityIndicator, { backgroundColor: getPriorityColor(item.prioridadeId) }]} />
             <Text style={[styles.taskTitle, isCompleted && styles.completedText]}>
               {item.titulo}
             </Text>
@@ -329,30 +437,32 @@ const TaskListScreen = () => {
             ) : null}
           </View>
 
-          <View style={styles.actionButtons}>
-            {!isCompleted ? (
-              <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: 'rgba(76, 175, 80, 0.1)' }]}
-                onPress={() => handleMarkCompleted(item.id)}
-              >
-                <Ionicons name="checkmark-circle-outline" size={22} color="#4CAF50" />
-              </TouchableOpacity>
-            ) : (
-              <TouchableOpacity
-                style={[styles.actionButton, { backgroundColor: 'rgba(255, 152, 0, 0.1)' }]}
-                onPress={() => handleReopenTask(item.id)}
-              >
-                <Ionicons name="refresh-outline" size={22} color="#FF9800" />
-              </TouchableOpacity>
-            )}
+          {!selectMode && (
+            <View style={styles.actionButtons}>
+              {!isCompleted ? (
+                <TouchableOpacity
+                  style={[styles.actionButton, { backgroundColor: 'rgba(76, 175, 80, 0.1)' }]}
+                  onPress={() => handleMarkCompleted(item.id)}
+                >
+                  <Ionicons name="checkmark-circle-outline" size={22} color="#4CAF50" />
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={[styles.actionButton, { backgroundColor: 'rgba(255, 152, 0, 0.1)' }]}
+                  onPress={() => handleReopenTask(item.id)}
+                >
+                  <Ionicons name="refresh-outline" size={22} color="#FF9800" />
+                </TouchableOpacity>
+              )}
 
-            <TouchableOpacity
-              style={[styles.actionButton, { backgroundColor: 'rgba(244, 67, 54, 0.1)' }]}
-              onPress={() => handleArchiveTask(item.id)}
-            >
-              <Ionicons name="archive-outline" size={22} color="#F44336" />
-            </TouchableOpacity>
-          </View>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: 'rgba(244, 67, 54, 0.1)' }]}
+                onPress={() => handleArchiveTask(item.id)}
+              >
+                <Ionicons name="archive-outline" size={22} color="#F44336" />
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
       </TouchableOpacity>
     );
@@ -393,23 +503,76 @@ const TaskListScreen = () => {
           <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Minhas Tarefas</Text>
-        <TouchableOpacity
-          style={styles.filterButton}
-          onPress={() => setFilterModalVisible(true)}
-        >
-          <Ionicons
-            name="options-outline"
-            size={24}
-            color={
-              filterOptions.statusId !== null ||
-              filterOptions.prioridadeId !== null ||
-              filterOptions.categoriaId !== null
-                ? '#2196F3'
-                : '#fff'
-            }
-          />
-        </TouchableOpacity>
+        
+        <View style={styles.headerButtons}>
+          <TouchableOpacity
+            style={styles.filterButton}
+            onPress={toggleSelectMode}
+          >
+            <Ionicons 
+              name={selectMode ? "close" : "checkmark-circle-outline"} 
+              size={24} 
+              color="#fff" 
+            />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.filterButton}
+            onPress={() => setFilterModalVisible(true)}
+          >
+            <Ionicons
+              name="options-outline"
+              size={24}
+              color={
+                filterOptions.statusId !== null ||
+                filterOptions.prioridadeId !== null ||
+                filterOptions.categoriaId !== null
+                  ? '#2196F3'
+                  : '#fff'
+              }
+            />
+          </TouchableOpacity>
+        </View>
       </View>
+
+      {/* Selection mode actions */}
+      {selectMode && (
+        <View style={styles.selectionActions}>
+          <Text style={styles.selectionText}>
+            {selectedTasks.length > 0 
+              ? `${selectedTasks.length} tarefa(s) selecionada(s)` 
+              : 'Selecione tarefas'}
+          </Text>
+          <View style={styles.selectionButtons}>
+            <TouchableOpacity 
+              style={styles.selectionButton}
+              onPress={selectAllTasks}
+            >
+              <Ionicons name="checkmark-done-outline" size={22} color="#2196F3" />
+              <Text style={styles.selectionButtonText}>
+                {selectedTasks.length === tasks.length ? 'Desmarcar todos' : 'Selecionar todos'}
+              </Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.selectionButton, { opacity: selectedTasks.length > 0 ? 1 : 0.5 }]}
+              onPress={confirmArchiveSelectedTasks}
+              disabled={selectedTasks.length === 0}
+            >
+              <Ionicons name="archive-outline" size={22} color="#9C27B0" />
+              <Text style={[styles.selectionButtonText, { color: '#9C27B0' }]}>Arquivar</Text>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.selectionButton, { opacity: selectedTasks.length > 0 ? 1 : 0.5 }]}
+              onPress={confirmDeleteSelectedTasks}
+              disabled={selectedTasks.length === 0}
+            >
+              <Ionicons name="trash-outline" size={22} color="#F44336" />
+              <Text style={[styles.selectionButtonText, { color: '#F44336' }]}>Excluir</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* Search Bar */}
       <View style={styles.searchContainer}>
@@ -643,6 +806,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  headerButtons: {
+    flexDirection: 'row',
+  },
+  headerButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#1E293B',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
   searchContainer: {
     paddingHorizontal: 20,
     paddingVertical: 12,
@@ -692,6 +867,23 @@ const styles = StyleSheet.create({
   pastDueTask: {
     borderLeftWidth: 4,
     borderLeftColor: '#F44336',
+  },
+  selectedTask: {
+    borderWidth: 2,
+    borderColor: '#2196F3',
+  },
+  checkboxContainer: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 2,
+    borderColor: '#2196F3',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  checkboxSelected: {
+    backgroundColor: '#2196F3',
   },
   taskHeader: {
     flexDirection: 'row',
@@ -950,7 +1142,35 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontWeight: '600',
     fontSize: 16,
-  }
+  },
+  selectionActions: {
+    backgroundColor: '#1E293B',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#334155',
+  },
+  selectionText: {
+    color: '#fff',
+    fontSize: 14,
+    marginBottom: 8,
+  },
+  selectionButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  selectionButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  selectionButtonText: {
+    color: '#2196F3',
+    marginLeft: 4,
+    fontSize: 14,
+    fontWeight: '500',
+  },
 });
 
 export default TaskListScreen;

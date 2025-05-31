@@ -6,6 +6,8 @@ import TaskDetailScreen from '../screens/tasks/TaskDetailScreen';
 import CreateTaskScreen from '../screens/tasks/CreateTaskScreen';
 import EditTaskScreen from '../screens/tasks/EditTaskScreen';
 import CategoriesScreen from '../screens/categories/CategoriesScreen'; 
+import ArchivedTasksScreen from '../screens/tasks/ArchivedTasksScreen';
+
 export type AppStackParamList = {
   Home: undefined;
   TaskList: undefined;
@@ -15,6 +17,7 @@ export type AppStackParamList = {
   Categories: undefined; 
   Profile: undefined;
   Settings: undefined;
+  ArchivedTasks: undefined;
 };
 
 const Stack = createStackNavigator<AppStackParamList>();
@@ -32,6 +35,7 @@ export default function AppNavigator() {
       <Stack.Screen name="CreateTask" component={CreateTaskScreen} />
       <Stack.Screen name="EditTask" component={EditTaskScreen} />
       <Stack.Screen name="Categories" component={CategoriesScreen} /> 
+      <Stack.Screen name="ArchivedTasks" component={ArchivedTasksScreen} />
     </Stack.Navigator>
   );
 }

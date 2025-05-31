@@ -320,19 +320,35 @@ const onRefresh = () => {
           </TouchableOpacity>
 
           <TouchableOpacity 
-          style={styles.actionCard} 
-          activeOpacity={0.7}
-          onPress={() => navigation.navigate('Categories')}
+            style={styles.actionCard} 
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('Categories')}
           >
-          <View style={[styles.actionIcon, { backgroundColor: 'rgba(255, 152, 0, 0.15)' }]}>
-            <Ionicons name="folder-open" size={30} color="#FF9800" />
-          </View>
-          <View style={styles.actionContent}>
-            <Text style={styles.actionText}>Categorias</Text>
-            <Text style={styles.actionSubtext}>Organize suas tarefas por categoria</Text>
+            <View style={[styles.actionIcon, { backgroundColor: 'rgba(255, 152, 0, 0.15)' }]}>
+              <Ionicons name="folder-open" size={30} color="#FF9800" />
+            </View>
+            <View style={styles.actionContent}>
+              <Text style={styles.actionText}>Categorias</Text>
+              <Text style={styles.actionSubtext}>Organize suas tarefas por categoria</Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color="#94A3B8" />
-            </TouchableOpacity>
+          </TouchableOpacity>
+
+          {/* Botão para tarefas arquivadas */}
+          <TouchableOpacity 
+            style={styles.actionCard} 
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('ArchivedTasks')}
+          >
+            <View style={[styles.actionIcon, { backgroundColor: 'rgba(156, 39, 176, 0.15)' }]}>
+              <Ionicons name="archive" size={30} color="#9C27B0" />
+            </View>
+            <View style={styles.actionContent}>
+              <Text style={styles.actionText}>Tarefas Arquivadas</Text>
+              <Text style={styles.actionSubtext}>Visualize e restaure tarefas arquivadas</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={24} color="#94A3B8" />
+          </TouchableOpacity>
         </View>
 
         {/* Tarefas Recentes */}
