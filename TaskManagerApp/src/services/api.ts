@@ -226,7 +226,7 @@ const userService = {
 };
 
 const taskService = {
-  async getTasks(page = 0, size = 10) {
+  async getTasks(page = 0, size = 99) {
     try {
       const response = await axiosInstance.get(`/tarefas/paginado?page=${page}&size=${size}`);
       return response.data;
@@ -352,7 +352,62 @@ async deleteBulkTasks(taskIds: number[]) {
     throw error;
   }
 },
+
+async getArchivedTasks(page = 0, size = 99) {
+  try {
+    const response = await axiosInstance.get(`/tarefas/arquivadas?page=${page}&size=${size}`);
+    return response.data;
+  } catch (error) {
+    errorLog('Erro ao buscar tarefas arquivadas:', error);
+    throw error;
+  }
+},
+
+
+async restoreTask(taskId: number) {
+  try {
+    const response = await axiosInstance.patch(`/tarefas/restaurar/${taskId}`);
+    return response.data;
+  } catch (error) {
+    errorLog('Erro ao restaurar tarefa:', error);
+    throw error;
+  }
+},
+
+async restoreMultipleTasks(data: { tarefasId: number[] }) {
+  try {
+    const response = await axiosInstance.patch('/tarefas/restaurar', data);
+    return response.data;
+  } catch (error) {
+    errorLog('Erro ao restaurar múltiplas tarefas:', error);
+    throw error;
+  }
+},
+
+async deletarTarefa(taskId: number) {
+  try {
+    const response = await axiosInstance.delete(`/tarefas/deletar/${taskId}`);
+    return response.data;
+  } catch (error) {
+    errorLog('Erro ao excluir tarefa:', error);
+    throw error;
+  }
+},
+
+async excluirMultiplasTarefas(data: { tarefasId: number[] }) {
+  try {
+    const response = await axiosInstance.delete('/tarefas/deletar/multiplas', {
+      data: data
+    });
+    return response.data;
+  } catch (error) {
+    errorLog('Erro ao excluir múltiplas tarefas:', error);
+    throw error;
+  }
+},
 };
+
+
 
 
 const categoryService = {
