@@ -1,3 +1,5 @@
+
+
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { config } from './config';
@@ -42,7 +44,6 @@ axiosInstance.interceptors.response.use(
   (error) => {
     errorLog('Erro:', error.message);
 
-
     if (error.response) {
       switch (error.response.status) {
         case 401:
@@ -68,6 +69,7 @@ axiosInstance.interceptors.response.use(
   }
 );
 
+
 interface LoginRequest {
   email: string;
   senha: string;
@@ -75,6 +77,16 @@ interface LoginRequest {
 
 interface LoginResponse {
   token: string;
+}
+
+interface ForgotPasswordRequest {
+  email: string;
+}
+
+interface ResetPasswordRequest {
+  token: string;
+  novaSenha: string;
+  confirmaSenha: string;
 }
 
 interface RegisterRequest {
@@ -103,6 +115,43 @@ interface ChangePasswordRequest {
   senhaAtual: string;
   novaSenha: string;
   confirmaSenha: string;
+}
+
+interface FilterTasksOptions {
+  statusId: number | null;
+  prioridadeId: number | null;
+  categoriaId: number | null;
+}
+
+interface BulkTaskRequest {
+  tarefasId: number[];
+}
+
+interface CreateTaskRequest {
+  titulo: string;
+  descricao?: string;
+  statusId: number;
+  prioridadeId: number;
+  prazo?: string | null;
+  categoriaId?: number | null;
+}
+
+interface UpdateTaskRequest {
+  id: number;
+  titulo?: string;
+  descricao?: string;
+  statusId?: number;
+  prioridadeId?: number;
+  prazo?: string | null;
+  categoriaId?: number | null;
+}
+
+interface CreateCategoryRequest {
+  nome: string;
+}
+
+interface UpdateCategoryRequest {
+  nome?: string;
 }
 
 
@@ -136,8 +185,6 @@ const authService = {
     try {
       const token = await AsyncStorage.getItem('@TaskManager:token');
       if (!token) return false;
-
-     
       const isTokenValid = await this.refreshToken();
       return isTokenValid;
     } catch (error) {
@@ -225,7 +272,9 @@ const userService = {
   }
 };
 
+
 const taskService = {
+  
   async getTasks(page = 0, size = 99) {
     try {
       const response = await axiosInstance.get(`/tarefas/paginado?page=${page}&size=${size}`);
@@ -236,7 +285,8 @@ const taskService = {
     }
   },
   
-  async createTask(taskData: any) {
+  
+  async createTask(taskData: CreateTaskRequest) {
     try {
       const response = await axiosInstance.post('/tarefas', taskData);
       return response.data;
@@ -246,7 +296,8 @@ const taskService = {
     }
   },
 
-   async getTaskStats() {
+  
+  async getTaskStats() {
     try {
       const response = await axiosInstance.get('/tarefas/estatisticas');
       return response.data;
@@ -257,7 +308,29 @@ const taskService = {
   },
 
   
-   async filterTasks(filterOptions: FilterTasksOptions, page = 0, size = 10) {
+  async getTaskById(taskId: number) {
+    try {
+      const response = await axiosInstance.get(`/tarefas/${taskId}`);
+      return response.data;
+    } catch (error) {
+      errorLog('Erro ao buscar tarefa por ID:', error);
+      throw error;
+    }
+  },
+
+ 
+  async updateTask(taskData: UpdateTaskRequest) {
+    try {
+      const response = await axiosInstance.put(`/tarefas/${taskData.id}`, taskData);
+      return response.data;
+    } catch (error) {
+      errorLog('Erro ao atualizar tarefa:', error);
+      throw error;
+    }
+  },
+  
+ 
+  async filterTasks(filterOptions: FilterTasksOptions, page = 0, size = 10) {
     const { statusId, prioridadeId, categoriaId } = filterOptions;
     let url = `/tarefas/filtrar?page=${page}&size=${size}`;
     
@@ -284,6 +357,7 @@ const taskService = {
     }
   },
   
+ 
   async completeTask(taskId: number) {
     try {
       const response = await axiosInstance.patch(`/tarefas/concluir/${taskId}`);
@@ -293,7 +367,19 @@ const taskService = {
       throw error;
     }
   },
+
   
+  async completeMultipleTasks(data: BulkTaskRequest) {
+    try {
+      const response = await axiosInstance.patch('/tarefas/concluir', data);
+      return response.data;
+    } catch (error) {
+      errorLog('Erro ao concluir múltiplas tarefas:', error);
+      throw error;
+    }
+  },
+  
+
   async reopenTask(taskId: number) {
     try {
       const response = await axiosInstance.patch(`/tarefas/reabrir/${taskId}`);
@@ -303,114 +389,116 @@ const taskService = {
       throw error;
     }
   },
+
+
+  async reopenMultipleTasks(data: BulkTaskRequest) {
+    try {
+      const response = await axiosInstance.patch('/tarefas/reabrir', data);
+      return response.data;
+    } catch (error) {
+      errorLog('Erro ao reabrir múltiplas tarefas:', error);
+      throw error;
+    }
+  },
   
+
+  
+
   async archiveTask(taskId: number) {
     try {
       await axiosInstance.delete(`/tarefas/arquivar/${taskId}`);
+      log(`Tarefa ${taskId} arquivada com sucesso`);
     } catch (error) {
       errorLog('Erro ao arquivar tarefa:', error);
       throw error;
     }
   },
 
-  async getTaskById(taskId: number) {
+
+  async arquivarMultiplasTarefas(data: BulkTaskRequest) {
     try {
-      const response = await axiosInstance.get(`/tarefas/${taskId}`);
-      return response.data;
+      await axiosInstance.patch('/tarefas/arquivar', data);
+      log(`${data.tarefasId.length} tarefas arquivadas com sucesso`);
     } catch (error) {
-      errorLog('Erro ao buscar tarefa por ID:', error);
+      errorLog('Erro ao arquivar múltiplas tarefas:', error);
       throw error;
     }
   },
-  async updateTask(taskData: any) {
-  try {
-    const response = await axiosInstance.put(`/tarefas/${taskData.id}`, taskData);
-    return response.data;
-  } catch (error) {
-    errorLog('Erro ao atualizar tarefa:', error);
-    throw error;
-  }
-},
+
+
+  async getArchivedTasks(page = 0, size = 99) {
+    try {
+      const response = await axiosInstance.get(`/tarefas/arquivadas?page=${page}&size=${size}`);
+      return response.data;
+    } catch (error) {
+      errorLog('Erro ao buscar tarefas arquivadas:', error);
+      throw error;
+    }
+  },
+
+
+  async restoreTask(taskId: number) {
+    try {
+      const response = await axiosInstance.patch(`/tarefas/restaurar/${taskId}`);
+      return response.data;
+    } catch (error) {
+      errorLog('Erro ao restaurar tarefa:', error);
+      throw error;
+    }
+  },
+
   
-async deleteTask(taskId: number) {
-  try {
-    await axiosInstance.delete(`/tarefas/deletar/${taskId}`);
-  } catch (error) {
-    errorLog('Erro ao excluir tarefa:', error);
-    throw error;
+  async restoreMultipleTasks(data: BulkTaskRequest) {
+    try {
+      const response = await axiosInstance.patch('/tarefas/restaurar', data);
+      return response.data;
+    } catch (error) {
+      errorLog('Erro ao restaurar múltiplas tarefas:', error);
+      throw error;
+    }
+  },
+
+  
+  
+ 
+  async deletarTarefa(taskId: number) {
+    try {
+      await axiosInstance.delete(`/tarefas/deletar/${taskId}`);
+      log(`Tarefa ${taskId} excluída permanentemente`);
+    } catch (error) {
+      errorLog('Erro ao excluir tarefa:', error);
+      throw error;
+    }
+  },
+
+  
+  async excluirMultiplasTarefas(data: BulkTaskRequest) {
+    try {
+      await axiosInstance.delete('/tarefas/deletar/multiplas', {
+        data: data
+      });
+      log(`${data.tarefasId.length} tarefas excluídas permanentemente`);
+    } catch (error) {
+      errorLog('Erro ao excluir múltiplas tarefas:', error);
+      throw error;
+    }
+  },
+
+  
+  async deleteTask(taskId: number) {
+    console.warn('deleteTask está deprecated, use deletarTarefa');
+    return this.deletarTarefa(taskId);
+  },
+
+  async deleteBulkTasks(taskIds: number[]) {
+    console.warn('deleteBulkTasks está deprecated, use excluirMultiplasTarefas');
+    return this.excluirMultiplasTarefas({ tarefasId: taskIds });
   }
-},
-
-
-async deleteBulkTasks(taskIds: number[]) {
-  try {
-    await axiosInstance.delete('/tarefas/deletar/multiplas', {
-      data: { tarefasId: taskIds }
-    });
-  } catch (error) {
-    errorLog('Erro ao excluir múltiplas tarefas:', error);
-    throw error;
-  }
-},
-
-async getArchivedTasks(page = 0, size = 99) {
-  try {
-    const response = await axiosInstance.get(`/tarefas/arquivadas?page=${page}&size=${size}`);
-    return response.data;
-  } catch (error) {
-    errorLog('Erro ao buscar tarefas arquivadas:', error);
-    throw error;
-  }
-},
-
-
-async restoreTask(taskId: number) {
-  try {
-    const response = await axiosInstance.patch(`/tarefas/restaurar/${taskId}`);
-    return response.data;
-  } catch (error) {
-    errorLog('Erro ao restaurar tarefa:', error);
-    throw error;
-  }
-},
-
-async restoreMultipleTasks(data: { tarefasId: number[] }) {
-  try {
-    const response = await axiosInstance.patch('/tarefas/restaurar', data);
-    return response.data;
-  } catch (error) {
-    errorLog('Erro ao restaurar múltiplas tarefas:', error);
-    throw error;
-  }
-},
-
-async deletarTarefa(taskId: number) {
-  try {
-    const response = await axiosInstance.delete(`/tarefas/deletar/${taskId}`);
-    return response.data;
-  } catch (error) {
-    errorLog('Erro ao excluir tarefa:', error);
-    throw error;
-  }
-},
-
-async excluirMultiplasTarefas(data: { tarefasId: number[] }) {
-  try {
-    const response = await axiosInstance.delete('/tarefas/deletar/multiplas', {
-      data: data
-    });
-    return response.data;
-  } catch (error) {
-    errorLog('Erro ao excluir múltiplas tarefas:', error);
-    throw error;
-  }
-},
 };
 
 
-
-
 const categoryService = {
+
   async getCategories() {
     try {
       const response = await axiosInstance.get('/categorias');
@@ -421,7 +509,8 @@ const categoryService = {
     }
   },
   
-  async createCategory(categoryData: any) {
+  
+  async createCategory(categoryData: CreateCategoryRequest) {
     try {
       const response = await axiosInstance.post('/categorias', categoryData);
       return response.data;
@@ -431,7 +520,8 @@ const categoryService = {
     }
   },
   
-  async updateCategory(categoryId: number, categoryData: any) {
+ 
+  async updateCategory(categoryId: number, categoryData: UpdateCategoryRequest) {
     try {
       const response = await axiosInstance.put(`/categorias/${categoryId}`, categoryData);
       return response.data;
@@ -441,9 +531,11 @@ const categoryService = {
     }
   },
   
+ 
   async deleteCategory(categoryId: number) {
     try {
       await axiosInstance.delete(`/categorias/${categoryId}`);
+      log(`Categoria ${categoryId} excluída com sucesso`);
     } catch (error) {
       errorLog('Erro ao excluir categoria:', error);
       throw error;
@@ -451,16 +543,27 @@ const categoryService = {
   }
 };
 
+
 export default {
-  api: axiosInstance,        
-  auth: authService,         
-  user: userService,         
-  task: taskService,         
-  category: categoryService  
+  api: axiosInstance,
+  auth: authService,
+  user: userService,
+  task: taskService,
+  category: categoryService
 };
 
-interface FilterTasksOptions {
-  statusId: number | null;
-  prioridadeId: number | null;
-  categoriaId: number | null;
-}
+
+export type {
+  LoginRequest,
+  LoginResponse,
+  RegisterRequest,
+  UserResponse,
+  UpdateUserRequest,
+  ChangePasswordRequest,
+  FilterTasksOptions,
+  BulkTaskRequest,
+  CreateTaskRequest,
+  UpdateTaskRequest,
+  CreateCategoryRequest,
+  UpdateCategoryRequest
+};

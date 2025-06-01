@@ -13,17 +13,24 @@ import {
   Dimensions,
   StatusBar,
   Animated,
+  Alert,
 } from 'react-native';
-import { useAuth } from '../../contexts/AuthContext';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { RootStackParamList } from '../../../App';
 import { useNavigation } from '@react-navigation/native';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useAuth } from '../../contexts/AuthContext';
 
 const { width, height } = Dimensions.get('window');
 
-type LoginScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Login'>;
+
+type AuthStackParamList = {
+  Login: undefined;
+  Register: undefined;
+  ForgotPassword: undefined;
+};
+
+type LoginScreenNavigationProp = StackNavigationProp<AuthStackParamList, 'Login'>;
 
 const LoginScreen = () => {
   const navigation = useNavigation<LoginScreenNavigationProp>();
@@ -34,7 +41,6 @@ const LoginScreen = () => {
   const [error, setError] = useState<string | null>(null);
   const [secureTextEntry, setSecureTextEntry] = useState(true);
   const insets = useSafeAreaInsets();
-  
   
   const fadeAnim = useState(new Animated.Value(0))[0];
   const slideAnim = useState(new Animated.Value(50))[0];
@@ -69,8 +75,8 @@ const LoginScreen = () => {
     setError(null);
     try {
       await login(email, senha); 
+      
     } catch (err: any) {
-  
       if (err.message && err.message.includes('credenciais')) {
         setError('Email ou senha incorretos. Tente novamente.');
       } else if (err.message && err.message.includes('rede')) {
@@ -183,7 +189,6 @@ const LoginScreen = () => {
                 </>
               )}
             </TouchableOpacity>
-            
             <View style={styles.registerContainer}>
               <Text style={styles.registerText}>Não tem uma conta?</Text>
               <TouchableOpacity onPress={() => navigation.navigate('Register')}>
@@ -308,6 +313,16 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
+  },
+  forgotPasswordLink: {
+    alignSelf: 'center',
+    marginTop: 16,
+    padding: 8,
+  },
+  forgotPasswordText: {
+    color: '#2196F3',
+    fontSize: 14,
+    fontWeight: '600',
   },
   registerContainer: {
     flexDirection: 'row',

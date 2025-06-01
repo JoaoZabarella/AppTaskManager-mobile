@@ -16,6 +16,11 @@ export interface UserResponse {
   roles: string[];
   statusEmoji?: string;
 }
+export interface AlterarSenhaDTO {
+  senhaAtual: string;
+  novaSenha: string;
+  confirmaSenha: string;
+}
 
 export default {
   async registerUser(userData: RegisterRequest): Promise<UserResponse> {
@@ -44,6 +49,15 @@ export default {
       return response.data;
     } catch (error) {
       console.error('Erro ao buscar perfil:', error);
+      throw error;
+    }
+  },
+
+  async alterarSenha(dados: AlterarSenhaDTO): Promise<void> {
+    try {
+      await api.api.put('/usuario/me/alterar-senha', dados);
+    } catch (error) {
+      console.error('Erro ao alterar senha:', error);
       throw error;
     }
   }
