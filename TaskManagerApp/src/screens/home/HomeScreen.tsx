@@ -192,11 +192,11 @@ const onRefresh = () => {
           <Text style={styles.subtitle}>Bem-vindo ao TaskManager</Text>
         </View>
         <TouchableOpacity 
-          onPress={handleLogout} 
+          onPress={() => navigation.navigate('Profile')} 
           style={styles.logoutButton}
           activeOpacity={0.7}
         >
-          <Ionicons name="log-out-outline" size={26} color="#fff" />
+          <Ionicons name="person-outline" size={26} color="#fff" />
         </TouchableOpacity>
       </Animated.View>
 
@@ -638,6 +638,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#94A3B8',
     marginLeft: 4,
+  },
+  changePasswordButton: {
+    marginTop: 20,
+    padding: 16,
+    borderRadius: 12,
+    backgroundColor: '#1E293B',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  changePasswordText: {
+    fontSize: 16,
+    color: '#2196F3',
+    fontWeight: 'bold',
   },
 });
 

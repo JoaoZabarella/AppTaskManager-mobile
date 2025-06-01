@@ -299,26 +299,25 @@ const TaskListScreen = () => {
       `Tem certeza que deseja arquivar ${selectedTasks.length} tarefa(s)?`,
       [
         { text: 'Cancelar', style: 'cancel' },
-        { text: 'Arquivar', onPress: archiveSelectedTasks }
+        { text: 'Arquivar', onPress: () => arquivarMultiplasTarefas({ tarefasId: selectedTasks })
+        }
       ]
     );
   };
 
-  const archiveSelectedTasks = async () => {
-    try {
-      setLoading(true);
-      await apiService.api.task.arquivarMultiplasTarefas({ tarefasId: selectedTasks });
-      setTasks(tasks.filter(task => !selectedTasks.includes(task.id)));
-      setSelectedTasks([]);
-      setSelectMode(false);
-      showAlert('Sucesso', 'Tarefas arquivadas com sucesso!', 'success');
-    } catch (error) {
-      console.error('Erro ao arquivar tarefas:', error);
-      showAlert('Erro', 'Não foi possível arquivar as tarefas', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
+const arquivarMultiplasTarefas = async (data: { tarefasId: number[] }) => {
+  try {
+    setLoading(true);
+    await apiService.api.task.arquivarMultiplasTarefas(data);
+    setTasks(tasks.filter(task => !data.tarefasId.includes(task.id)));
+    showAlert('Sucesso', 'Tarefas arquivadas com sucesso!', 'success');
+  } catch (error) {
+    console.error('Erro ao arquivar tarefas:', error);
+    showAlert('Erro', 'Não foi possível arquivar as tarefas', 'error');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const confirmDeleteSelectedTasks = () => {
     if (selectedTasks.length === 0) {
@@ -331,26 +330,24 @@ const TaskListScreen = () => {
       `Tem certeza que deseja excluir ${selectedTasks.length} tarefa(s)? Esta ação não pode ser desfeita.`,
       [
         { text: 'Cancelar', style: 'cancel' },
-        { text: 'Excluir', style: 'destructive', onPress: deleteSelectedTasks }
+        { text: 'Excluir', style: 'destructive', onPress: () => excluirMultiplasTarefas({ tarefasId: selectedTasks }) }
       ]
     );
   };
 
-  const deleteSelectedTasks = async () => {
-    try {
-      setLoading(true);
-      await apiService.api.task.excluirMultiplasTarefas({ tarefasId: selectedTasks });
-      setTasks(tasks.filter(task => !selectedTasks.includes(task.id)));
-      setSelectedTasks([]);
-      setSelectMode(false);
-      showAlert('Sucesso', 'Tarefas excluídas com sucesso!', 'success');
-    } catch (error) {
-      console.error('Erro ao excluir tarefas:', error);
-      showAlert('Erro', 'Não foi possível excluir as tarefas', 'error');
-    } finally {
-      setLoading(false);
-    }
-  };
+const excluirMultiplasTarefas = async (data: { tarefasId: number[] }) => {
+  try {
+    setLoading(true);
+    await apiService.api.task.excluirMultiplasTarefas(data);
+    setTasks(tasks.filter(task => !data.tarefasId.includes(task.id)));
+    showAlert('Sucesso', 'Tarefas excluídas com sucesso!', 'success');
+  } catch (error) {
+    console.error('Erro ao excluir tarefas:', error);
+    showAlert('Erro', 'Não foi possível excluir as tarefas', 'error');
+  } finally {
+    setLoading(false);
+  }
+};
 
   const getPriorityColor = (prioridadeId: number) => {
     switch (prioridadeId) {
